@@ -76,8 +76,24 @@ def load_xstest():
     return list(_FALLBACK_SAFE), list(_FALLBACK_UNSAFE)
 
 
-def run_xstest(with_fast=True, threshold=0.5, wandb_log=False):
-    """Over-refusal (on safe) and detection (on unsafe) per detector, on XSTest."""
+def _load_l2_guard(repo="g25ait2149/aegis-rjd3-guard"):
+    """Load the tuned L2 guard (published LoRA adapter). Returns None on failure."""
+    try:
+        from aegis.guard.guard_model import TunedGuard
+        g = TunedGuard(path=repo).load()
+        print(f"  [guard] TunedGuard (L2) loaded from {repo}")
+        return g
+    except Exception as e:
+        print(f"  [guard] could not load TunedGuard ({str(e)[:60]}) - skipping L2")
+        return None
+
+
+def run_xstest(with_fast=True, threshold=0.5, wandb_log=False, use_guard=False,
+               guard_repo="g25ait2149/aegis-rjd3-guard", qwen3guard=False,
+               qwen3guard_id="Qwen/Qwen3Guard-Gen-0.6B"):
+    """Over-refusal (on safe) and detection (on unsafe) per detector, on XSTest.
+    use_guard=True adds the tuned L2 guard and the Aegis L1+L2 cascade (needs a GPU);
+    qwen3guard=True adds Qwen3Guard-0.6B as a modern guard baseline (needs a GPU)."""
     print("XSTest over-refusal eval")
     train_df, _ = D.assemble()
     Xtr, ytr = train_df.text.to_numpy(), train_df.label.to_numpy()
@@ -87,6 +103,22 @@ def run_xstest(with_fast=True, threshold=0.5, wandb_log=False):
     for name, m in models.items():
         m.fit(Xtr, ytr)
         print(f"  trained {name}")
+
+    # Pretrained guards need no fitting; add them after the L1 detectors.
+    if use_guard:
+        g = _load_l2_guard(guard_repo)
+        if g is not None:
+            models["TunedGuard"] = g
+            if "Aegis-Fast" in models:
+                from aegis.guard.guard_model import GuardEnsemble
+                models["Aegis(Fast+Guard)"] = GuardEnsemble([models["Aegis-Fast"], g], mode="max")
+    if qwen3guard:
+        try:
+            from aegis.guard.open_guard import OpenGuard
+            models["Qwen3Guard-0.6B"] = OpenGuard(model_id=qwen3guard_id, mode="llm_guard").load()
+            print(f"  [guard] Qwen3Guard baseline loaded ({qwen3guard_id})")
+        except Exception as e:
+            print(f"  [guard] Qwen3Guard failed: {str(e)[:60]}")
 
     safe, unsafe = load_xstest()
     rows = []

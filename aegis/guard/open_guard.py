@@ -54,10 +54,15 @@ class OpenGuard:
         import torch
         scores = []
         for t in texts:
-            msgs = [{"role": "user", "content": t}]
-            ids = self.tok.apply_chat_template(msgs, return_tensors="pt").to(self.model.device)
+            try:
+                text = self.tok.apply_chat_template([{"role": "user", "content": t}],
+                                                    add_generation_prompt=True, tokenize=False)
+            except Exception:
+                text = t
+            enc = self.tok(text, return_tensors="pt").to(self.model.device)
             with torch.no_grad():
-                gen = self.model.generate(ids, max_new_tokens=8, do_sample=False)
-            verdict = self.tok.decode(gen[0][ids.shape[-1]:], skip_special_tokens=True)
-            scores.append(1.0 if "unsafe" in verdict.lower() else 0.0)
+                gen = self.model.generate(**enc, max_new_tokens=16, do_sample=False,
+                                          pad_token_id=self.tok.eos_token_id)
+            verdict = self.tok.decode(gen[0, enc["input_ids"].shape[1]:], skip_special_tokens=True)
+            scores.append(1.0 if "unsafe" in verdict.lower() else 0.0)  # Qwen3Guard: Safe/Controversial/Unsafe
         return np.array(scores)

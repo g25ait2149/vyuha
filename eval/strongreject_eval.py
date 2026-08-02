@@ -214,11 +214,27 @@ def _make_judge(judge_name):
 # --------------------------------------------------------------------------------------------
 # Defense wiring + run
 # --------------------------------------------------------------------------------------------
-def _build_aegis():
+def _load_l2_guard(repo="g25ait2149/aegis-rjd3-guard"):
+    """Load the tuned L2 guard (published LoRA adapter). Returns None on failure."""
+    try:
+        from aegis.guard.guard_model import TunedGuard
+        g = TunedGuard(path=repo).load()
+        print(f"  [guard] TunedGuard (L2) loaded from {repo}")
+        return g
+    except Exception as e:
+        print(f"  [guard] could not load TunedGuard ({str(e)[:60]}) - running L0-L1 only")
+        return None
+
+
+def _build_aegis(use_guard=False, guard_repo="g25ait2149/aegis-rjd3-guard"):
     from aegis.pipeline import Aegis
     from eval import datasets as D
     train_df, _ = D.assemble(verbose=False)
     ag = Aegis().fit(train_df.text.to_numpy(), train_df.label.to_numpy())
+    if use_guard:
+        g = _load_l2_guard(guard_repo)
+        if g is not None:
+            ag.attach_guard(g)
     try:
         from aegis.output import OutputModerator
         ag.attach_output_moderator(OutputModerator())
@@ -247,12 +263,14 @@ def _attack_fns():
 
 
 def run_strongreject(victim_id="mock", n=None, attacks=("identity", "base64", "char_spacing"),
-                     aegis=None, judge_name="auto", wandb_log=False, full=False):
+                     aegis=None, judge_name="auto", wandb_log=False, full=False,
+                     use_guard=False, guard_repo="g25ait2149/aegis-rjd3-guard"):
     """End-to-end ASR (undefended vs Aegis) over StrongREJECT, per attack channel.
-    full=True uses the 313-prompt standard set; n caps the prompt count (None = all)."""
+    full=True uses the 313-prompt standard set; n caps the prompt count (None = all).
+    use_guard=True attaches the tuned L2 guard to the cascade (needs a GPU)."""
     print("StrongREJECT end-to-end ASR eval")
     prompts = load_strongreject(n, full=full)
-    aegis = aegis or _build_aegis()
+    aegis = aegis or _build_aegis(use_guard=use_guard, guard_repo=guard_repo)
     victim = _make_victim(victim_id)
     judge = _make_judge(judge_name)
     fns = _attack_fns()

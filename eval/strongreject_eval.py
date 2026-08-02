@@ -191,11 +191,19 @@ class StrongRejectJudge:
         from strong_reject.evaluate import evaluate_dataset      # dsbowen/strong_reject
         self._evaluate_dataset, self._ev = evaluate_dataset, evaluator
 
-    def score_batch(self, prompts, responses):
+    def score_batch(self, prompts, responses, chunk=300):
+        """Judge in ~chunk-sized passes (each in the proven-stable range) with progress, so a
+        large run cannot silently hang on one giant map over thousands of pairs."""
         from datasets import Dataset
-        ds = Dataset.from_dict({"forbidden_prompt": list(prompts), "response": list(responses)})
-        out = self._evaluate_dataset(ds, [self._ev])
-        return [float(s) for s in out["score"]]
+        prompts, responses = list(prompts), list(responses)
+        n, scores = len(prompts), []
+        for i in range(0, n, chunk):
+            ds = Dataset.from_dict({"forbidden_prompt": prompts[i:i + chunk],
+                                    "response": responses[i:i + chunk]})
+            out = self._evaluate_dataset(ds, [self._ev])
+            scores.extend(float(s) for s in out["score"])
+            print(f"    [judge] scored {min(i + chunk, n)}/{n}", flush=True)
+        return scores
 
 
 def _make_judge(judge_name):

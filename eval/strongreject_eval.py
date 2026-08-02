@@ -137,6 +137,20 @@ def _make_victim(victim_id):
         return MockVictim()
 
 
+def _free_model(v):
+    """Release a victim's weights + CUDA cache so the judge model can fit on the same GPU."""
+    try:
+        import gc, torch
+        if getattr(v, "model", None) is not None:
+            del v.model
+            v.model = None
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:
+        pass
+
+
 # --------------------------------------------------------------------------------------------
 # Judge
 # --------------------------------------------------------------------------------------------
@@ -226,42 +240,50 @@ def run_strongreject(victim_id="mock", n=60, attacks=("identity", "base64", "cha
     aegis = aegis or _build_aegis()
     victim = _make_victim(victim_id)
     judge = _make_judge(judge_name)
-    if not isinstance(judge, HeuristicJudge):        # probe: some judges (e.g. gated Gemma) only fail at run time
-        try:
-            judge.score_batch(["probe"], ["I cannot help with that."])
-        except Exception as e:
-            print(f"  [judge] {judge.name} could not run ({str(e)[:70]})")
-            print("          -> falling back to the heuristic proxy. For real StrongREJECT numbers,")
-            print("             accept the google/gemma-2b license on HuggingFace with your HF_TOKEN.")
-            judge = HeuristicJudge()
     fns = _attack_fns()
+    k = len(prompts)
 
-    rows = []
+    # Phase 1 - generate victim responses and record Aegis decisions (victim resident).
+    plan = []
     for atk in attacks:
         wrap = fns.get(atk)
         if wrap is None:
             print(f"  [warn] unknown attack '{atk}' - known: {', '.join(sorted(fns))}")
             continue
         wrapped = [wrap(p) for p in prompts]
+        responses = victim.generate(wrapped)
+        allow, blocked = [], 0
+        for w, r in zip(wrapped, responses):
+            if aegis.scan(w)["decision"] == "block":
+                allow.append(False); blocked += 1
+            elif aegis.guard_turn(w, r)["final"] == "block":
+                allow.append(False)
+            else:
+                allow.append(True)
+        plan.append({"attack": atk, "responses": responses, "allow": allow, "blocked_input": blocked})
+    _free_model(victim)                    # free the victim before the judge loads (fits a single T4)
 
-        t0 = time.time()
-        responses = victim.generate(wrapped)                         # generate once
-        jscores = judge.score_batch(prompts, responses)              # judge once (batched)
-        s_undef, s_aegis, blocked = list(jscores), [], 0
-        for w, r, js in zip(wrapped, responses, jscores):
-            dec = aegis.scan(w)["decision"]
-            if dec == "block":
-                s_aegis.append(0.0); blocked += 1; continue
-            g = aegis.guard_turn(w, r)
-            s_aegis.append(0.0 if g["final"] == "block" else js)
+    # Phase 2 - judge every response in one batch (judge resident; the model loads only once).
+    all_prompts = prompts * len(plan)
+    all_resp = [r for pl in plan for r in pl["responses"]]
+    try:
+        scores = judge.score_batch(all_prompts, all_resp)
+    except Exception as e:
+        print(f"  [judge] {judge.name} could not run ({str(e)[:70]})")
+        print("          -> falling back to the heuristic proxy. For real StrongREJECT numbers,")
+        print("             accept the google/gemma-2b license and re-run on a FRESH kernel.")
+        judge = HeuristicJudge(); scores = judge.score_batch(all_prompts, all_resp)
 
-        row = {"attack": atk, "n": len(prompts),
-               "asr_undefended": round(float(np.mean(s_undef)), 3),
-               "asr_aegis": round(float(np.mean(s_aegis)), 3),
-               "blocked_at_input": blocked,
-               "sec_per_prompt": round((time.time() - t0) / max(1, len(prompts)), 2)}
-        row["asr_reduction"] = round(row["asr_undefended"] - row["asr_aegis"], 3)
-        rows.append(row)
+    rows = []
+    for i, pl in enumerate(plan):
+        js = scores[i * k:(i + 1) * k]
+        s_undef = float(np.mean(js)) if js else 0.0
+        s_aegis = float(np.mean([j if a else 0.0 for j, a in zip(js, pl["allow"])])) if js else 0.0
+        rows.append({"attack": pl["attack"], "n": k,
+                     "asr_undefended": round(s_undef, 3),
+                     "asr_aegis": round(s_aegis, 3),
+                     "asr_reduction": round(s_undef - s_aegis, 3),
+                     "blocked_at_input": pl["blocked_input"]})
 
     w = max(9, *(len(a) for a in attacks))
     print(f"\n{'attack':<{w}}  {'ASR_undef':>10}  {'ASR_aegis':>10}  {'reduction':>10}  {'blocked':>8}")

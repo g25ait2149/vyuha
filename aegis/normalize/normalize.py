@@ -55,6 +55,22 @@ def _decode_base64_blobs(raw: str):
     return views
 
 
+def _despace(text: str) -> str:
+    """Collapse character-spacing while preserving word boundaries. When an attacker spaces
+    out every character ("h o w   t o"), the original word gaps become runs of 2+ spaces while
+    intra-word gaps are single spaces. Split on the word gaps, then join the single characters
+    inside each word - recovering "how to" instead of mashing it to "howto"."""
+    words = re.split(r"\s{2,}", text.strip())
+    out = []
+    for w in words:
+        pieces = w.split()
+        if pieces and sum(len(p) for p in pieces) / len(pieces) <= 1.5:
+            out.append("".join(pieces))        # spaced-out word -> collapse to one token
+        else:
+            out.append(" ".join(pieces))       # ordinary word(s) -> leave as-is
+    return " ".join(p for p in out if p)
+
+
 def normalize(text, full: bool = True) -> str:
     """De-obfuscate `text`. With full=True, append decoded/de-leet/de-spaced views."""
     text = str(text)
@@ -77,7 +93,7 @@ def normalize(text, full: bool = True) -> str:
         views.append("[deleet] " + deleet)
     toks = base.split()
     if toks and sum(len(w) for w in toks) / len(toks) < 2.2:   # spaced-out / ASCII-art
-        views.append("[despace] " + "".join(toks))
+        views.append("[despace] " + _despace(base))
     return "  ".join(views)
 
 

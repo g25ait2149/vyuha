@@ -226,6 +226,14 @@ def run_strongreject(victim_id="mock", n=60, attacks=("identity", "base64", "cha
     aegis = aegis or _build_aegis()
     victim = _make_victim(victim_id)
     judge = _make_judge(judge_name)
+    if not isinstance(judge, HeuristicJudge):        # probe: some judges (e.g. gated Gemma) only fail at run time
+        try:
+            judge.score_batch(["probe"], ["I cannot help with that."])
+        except Exception as e:
+            print(f"  [judge] {judge.name} could not run ({str(e)[:70]})")
+            print("          -> falling back to the heuristic proxy. For real StrongREJECT numbers,")
+            print("             accept the google/gemma-2b license on HuggingFace with your HF_TOKEN.")
+            judge = HeuristicJudge()
     fns = _attack_fns()
 
     rows = []

@@ -111,12 +111,16 @@ class HFVictim:
             self.load()
         out = []
         for p in prompts:
-            msgs = [{"role": "user", "content": p}]
-            ids = self.tok.apply_chat_template(msgs, add_generation_prompt=True, return_tensors="pt").to(self.model.device)
+            try:
+                text = self.tok.apply_chat_template([{"role": "user", "content": p}],
+                                                    add_generation_prompt=True, tokenize=False)
+            except Exception:
+                text = p
+            enc = self.tok(text, return_tensors="pt").to(self.model.device)
             with torch.no_grad():
-                gen = self.model.generate(ids, max_new_tokens=self.max_new_tokens, do_sample=False,
+                gen = self.model.generate(**enc, max_new_tokens=self.max_new_tokens, do_sample=False,
                                           pad_token_id=self.tok.eos_token_id)
-            out.append(self.tok.decode(gen[0, ids.shape[1]:], skip_special_tokens=True))
+            out.append(self.tok.decode(gen[0, enc["input_ids"].shape[1]:], skip_special_tokens=True))
         return out
 
 

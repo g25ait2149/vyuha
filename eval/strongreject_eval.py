@@ -47,13 +47,17 @@ _REFUSAL_CUES = (
 # --------------------------------------------------------------------------------------------
 # Prompts
 # --------------------------------------------------------------------------------------------
-def load_strongreject(n=None):
-    """StrongREJECT forbidden prompts. Prefer the official package, then HF, then placeholders."""
+def load_strongreject(n=None, full=False):
+    """StrongREJECT forbidden prompts. full=False -> the 60-prompt dev subset (fast iteration);
+    full=True -> the 313-prompt standard set (use this for reported / publication numbers).
+    Prefer the official package, then HF, then innocuous placeholders."""
     prompts = None
     try:                                             # official package (ships dataset + judge)
-        from strong_reject.load_datasets import load_strongreject_small
-        prompts = [r["forbidden_prompt"] for r in load_strongreject_small()]
-        print(f"  [ok]   StrongREJECT (package, small): {len(prompts)} prompts")
+        from strong_reject.load_datasets import (load_strongreject as _sr_full,
+                                                 load_strongreject_small as _sr_small)
+        rows = _sr_full() if full else _sr_small()
+        prompts = [r["forbidden_prompt"] for r in rows]
+        print(f"  [ok]   StrongREJECT (package, {'full-313' if full else 'small-60'}): {len(prompts)} prompts")
     except Exception:
         for hf_id in ("walledai/StrongREJECT", "csHuang/StrongREJECT"):
             try:
@@ -242,11 +246,12 @@ def _attack_fns():
     return fns
 
 
-def run_strongreject(victim_id="mock", n=60, attacks=("identity", "base64", "char_spacing"),
-                     aegis=None, judge_name="auto", wandb_log=False):
-    """End-to-end ASR (undefended vs Aegis) over StrongREJECT, per attack channel."""
+def run_strongreject(victim_id="mock", n=None, attacks=("identity", "base64", "char_spacing"),
+                     aegis=None, judge_name="auto", wandb_log=False, full=False):
+    """End-to-end ASR (undefended vs Aegis) over StrongREJECT, per attack channel.
+    full=True uses the 313-prompt standard set; n caps the prompt count (None = all)."""
     print("StrongREJECT end-to-end ASR eval")
-    prompts = load_strongreject(n)
+    prompts = load_strongreject(n, full=full)
     aegis = aegis or _build_aegis()
     victim = _make_victim(victim_id)
     judge = _make_judge(judge_name)

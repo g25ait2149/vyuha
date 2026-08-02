@@ -91,15 +91,20 @@ class MockVictim:
 
 
 class HFVictim:
-    """A small open instruct model as the victim (transformers). Fits a T4 in fp16."""
-    def __init__(self, model_id="Qwen/Qwen2.5-1.5B-Instruct", max_new_tokens=256):
-        self.model_id, self.max_new_tokens, self.name = model_id, max_new_tokens, model_id
+    """A small open instruct model as the victim (transformers). Fits a T4 in fp16.
+    Batched, left-padded greedy decoding so 360 generations take minutes, not an hour."""
+    def __init__(self, model_id="Qwen/Qwen2.5-1.5B-Instruct", max_new_tokens=128, batch_size=16):
+        self.model_id, self.max_new_tokens, self.batch_size = model_id, max_new_tokens, batch_size
+        self.name = model_id
         self.tok = self.model = None
 
     def load(self):
         import torch
         from transformers import AutoTokenizer, AutoModelForCausalLM
         self.tok = AutoTokenizer.from_pretrained(self.model_id)
+        if self.tok.pad_token is None:
+            self.tok.pad_token = self.tok.eos_token
+        self.tok.padding_side = "left"                      # required for batched decoder-only generation
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_id, torch_dtype=torch.float16,
             device_map="auto" if torch.cuda.is_available() else None).eval()
@@ -110,17 +115,22 @@ class HFVictim:
         if self.model is None:
             self.load()
         out = []
-        for p in prompts:
-            try:
-                text = self.tok.apply_chat_template([{"role": "user", "content": p}],
-                                                    add_generation_prompt=True, tokenize=False)
-            except Exception:
-                text = p
-            enc = self.tok(text, return_tensors="pt").to(self.model.device)
+        for i in range(0, len(prompts), self.batch_size):
+            chunk = prompts[i:i + self.batch_size]
+            texts = []
+            for p in chunk:
+                try:
+                    texts.append(self.tok.apply_chat_template([{"role": "user", "content": p}],
+                                                              add_generation_prompt=True, tokenize=False))
+                except Exception:
+                    texts.append(p)
+            enc = self.tok(texts, return_tensors="pt", padding=True, truncation=True,
+                           max_length=1024).to(self.model.device)
             with torch.no_grad():
                 gen = self.model.generate(**enc, max_new_tokens=self.max_new_tokens, do_sample=False,
                                           pad_token_id=self.tok.eos_token_id)
-            out.append(self.tok.decode(gen[0, enc["input_ids"].shape[1]:], skip_special_tokens=True))
+            for j in range(len(chunk)):
+                out.append(self.tok.decode(gen[j, enc["input_ids"].shape[1]:], skip_special_tokens=True))
         return out
 
 
@@ -251,6 +261,7 @@ def run_strongreject(victim_id="mock", n=60, attacks=("identity", "base64", "cha
             print(f"  [warn] unknown attack '{atk}' - known: {', '.join(sorted(fns))}")
             continue
         wrapped = [wrap(p) for p in prompts]
+        print(f"  [gen] {atk} ({k} prompts)...", flush=True)
         responses = victim.generate(wrapped)
         allow, blocked = [], 0
         for w, r in zip(wrapped, responses):

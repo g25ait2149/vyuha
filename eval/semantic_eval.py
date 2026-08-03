@@ -9,14 +9,23 @@ There is NO keyword or obfuscation tell, so a surface/pattern detector (L1) has 
 eval measures exactly that: detection rate of each L1 detector vs an L2 content guard (Qwen3Guard) on
 real PAIR jailbreaks, with over-refusal (FPR) on benign prompts as the control.
 
-Data: JailbreakBench artifacts (Chao et al., NeurIPS 2024) via `pip install jailbreakbench`, method
-"PAIR". Falls back to a tiny built-in persuasion-framed sample (structural stubs, no operational
-payload) so the plumbing runs offline. Defensive / evaluation use only.
+Data: JailbreakBench artifacts (Chao et al., NeurIPS 2024), method "PAIR", fetched directly over HTTP
+from the artifacts repo (no jailbreakbench package - it pins an old protobuf that breaks the L2 guards).
+Falls back to a tiny built-in persuasion-framed sample (structural stubs, no operational payload) so
+the plumbing runs offline. Defensive / evaluation use only.
 
     from eval.semantic_eval import run_semantic_eval
     run_semantic_eval(qwen3guard=True, wandb_log=True)
 """
+import json
+import urllib.request
+
 import numpy as np
+
+# JailbreakBench artifact JSONs (fetched directly over HTTP so we need neither the jailbreakbench
+# package nor its protobuf pin - which conflicts with the transformers-based L2 guards).
+_ARTIFACT_URL = ("https://raw.githubusercontent.com/JailbreakBench/artifacts/main/"
+                 "attack-artifacts/{method}/black_box/{model}.json")
 
 # Structural persuasion-framing stubs (NO operational harmful content) - only for the offline
 # plumbing test; the real PAIR prompts load from the jailbreakbench package on a networked run.
@@ -47,25 +56,26 @@ def load_semantic_attacks(methods=("PAIR",),
     (the meaningful attacks). Falls back to the built-in persuasion stubs if the package/artifacts
     are unavailable, so the harness always runs."""
     prompts = []
-    try:
-        import jailbreakbench as jbb
-        for method in methods:
-            for model in models:
-                try:
-                    art = jbb.read_artifact(method=method, model_name=model)
-                    for jb in art.jailbreaks:
-                        ok = getattr(jb, "jailbroken", True)
-                        p = getattr(jb, "prompt", None)
-                        if p and str(p).strip() and (ok or not only_successful):
-                            prompts.append(str(p))
-                    print(f"  [ok]   {method}/{model}: cumulative {len(prompts)} prompts")
-                except Exception as e:
-                    print(f"  [skip] {method}/{model}: {str(e)[:60]}")
-    except Exception as e:
-        print(f"  [warn] jailbreakbench unavailable ({str(e)[:50]}) - install with `pip install jailbreakbench`")
+    for method in methods:
+        for model in models:
+            url = _ARTIFACT_URL.format(method=method, model=model)
+            try:
+                with urllib.request.urlopen(url, timeout=30) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                jbs = data.get("jailbreaks", data) if isinstance(data, dict) else data
+                for jb in (jbs or []):
+                    if not isinstance(jb, dict):
+                        continue
+                    ok = jb.get("jailbroken", True)
+                    p = jb.get("prompt")
+                    if p and str(p).strip() and (ok or not only_successful):
+                        prompts.append(str(p))
+                print(f"  [ok]   {method}/{model}: cumulative {len(prompts)} prompts")
+            except Exception as e:
+                print(f"  [skip] {method}/{model}: {str(e)[:60]}")
     prompts = [p for p in dict.fromkeys(prompts) if p and p.strip()]   # dedup, keep order
     if not prompts:
-        print("  [warn] no PAIR artifacts loaded - using the built-in persuasion-stub sample (plumbing only)")
+        print("  [warn] no PAIR artifacts fetched - using the built-in persuasion-stub sample (plumbing only)")
         prompts = list(_FALLBACK_SEMANTIC)
     return prompts[:n] if n else prompts
 

@@ -155,6 +155,47 @@ def run_semantic_eval(with_fast=True, use_guard=False, qwen3guard=False,
     return rows
 
 
+def attack_efficiency(detection_rate=0.903, methods=("PAIR",),
+                      models=("vicuna-13b-v1.5", "llama-2-7b-chat-hf", "gpt-4-0125-preview")):
+    """Attack-EFFICIENCY analysis (the professor's ask). Reads queries-to-jailbreak from the PAIR
+    artifacts (number_of_queries on successful jailbreaks) and shows how a detection layer that
+    catches `detection_rate` of them inflates the attacker's cost. detection_rate defaults to the
+    measured Qwen3Guard number (0.903). Frames the cost asymmetry: the attacker pays many target-LLM
+    queries per success; the defender pays one small guard forward-pass per screen."""
+    import statistics
+    q = []
+    for method in methods:
+        for model in models:
+            url = _ARTIFACT_URL.format(method=method, model=model)
+            try:
+                with urllib.request.urlopen(url, timeout=30) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                jbs = data.get("jailbreaks", data) if isinstance(data, dict) else data
+                for jb in (jbs or []):
+                    if isinstance(jb, dict) and jb.get("jailbroken", False) and jb.get("number_of_queries"):
+                        q.append(int(jb["number_of_queries"]))
+                print(f"  [ok]   {method}/{model}: cumulative {len(q)} successful jailbreaks")
+            except Exception as e:
+                print(f"  [skip] {method}/{model}: {str(e)[:60]}")
+    if not q:
+        print("  [warn] no query data fetched"); return {}
+    med, mean = statistics.median(q), round(statistics.mean(q), 1)
+    evade = max(1e-6, 1.0 - detection_rate); mult = round(1.0 / evade, 1)
+    out = {"n_jailbroken": len(q), "median_queries": med, "mean_queries": mean,
+           "detection_rate": detection_rate, "evade_rate": round(evade, 3),
+           "cost_multiplier_behind_guard": mult,
+           "median_queries_behind_guard_est": round(med * mult),
+           "mean_queries_behind_guard_est": round(mean * mult)}
+    print("\n============ ATTACK EFFICIENCY (PAIR queries-to-jailbreak) ============")
+    print(f"undefended : {out['n_jailbroken']} successful jailbreaks, median {med} / mean {mean} target queries")
+    print(f"behind a guard catching {detection_rate:.1%}: only {evade:.1%} of jailbreaks evade -> ~{mult}x more")
+    print(f"  queries to land one (median ~{out['median_queries_behind_guard_est']}, "
+          f"mean ~{out['mean_queries_behind_guard_est']})")
+    print("cost asymmetry: attacker pays N target-LLM queries per success; defender pays one small "
+          "guard forward-pass per screen.")
+    return out
+
+
 def _log_wandb(rows):
     try:
         import os

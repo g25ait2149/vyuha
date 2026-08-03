@@ -56,11 +56,18 @@ def _decode_base64_blobs(raw: str):
 
 
 def _despace(text: str) -> str:
-    """Collapse character-spacing while preserving word boundaries. When an attacker spaces
-    out every character ("h o w   t o"), the original word gaps become runs of 2+ spaces while
-    intra-word gaps are single spaces. Split on the word gaps, then join the single characters
-    inside each word - recovering "how to" instead of mashing it to "howto"."""
-    words = re.split(r"\s{2,}", text.strip())
+    """Collapse character-spacing while preserving word boundaries, robust to the gap SIZE.
+    Attackers space out every character ("h o w   t o"); the intra-character gap is the smallest
+    run of whitespace and word gaps are larger. Composing character-spacing with zero-width
+    injection leaves 2-space (not 1-space) character gaps once the invisibles are stripped, which
+    would fool a fixed "split on 2+ spaces" rule. So detect the smallest gap dynamically and split
+    only on runs larger than it - recovering "how to" whether the character gap is 1 space or 2."""
+    text = text.strip()
+    runs = [len(m.group()) for m in re.finditer(r"\s+", text)]
+    if not runs:
+        return text
+    char_gap = min(runs)                                 # intra-character gap (1, or 2 after ZW strip)
+    words = re.split(r"\s{%d,}" % (char_gap + 1), text)   # split only on the larger word gaps
     out = []
     for w in words:
         pieces = w.split()

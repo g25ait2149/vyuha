@@ -19,7 +19,10 @@ from eval import datasets as D
 from eval import metrics as M
 
 
-def build_models(with_fast=True):
+def build_models(with_fast=True, fast_sem_gates=(0.85,)):
+    """Baselines + the Aegis-Fast L1 stack. Pass multiple fast_sem_gates (e.g. (0.85,0.90,0.95)) to
+    sweep the FastLayer's semantic gate - higher gate = the semantic detector fires only on very
+    high similarity, trading a little recall for lower over-refusal (FRR)."""
     models = {
         "Keyword":    KeywordBaseline(),
         "Word-TFIDF": RJDDetector(norm=False, char=False, feats_on=False, aug=False, calib=False, name="Word-TFIDF"),
@@ -27,7 +30,12 @@ def build_models(with_fast=True):
         "RJD-v2":     RJDDetector(norm=True, char=True, feats_on=True, aug=True, calib=True, name="RJD-v2"),
     }
     if with_fast:
-        models["Aegis-Fast"] = FastLayer()
+        gates = list(fast_sem_gates) or [0.85]
+        if len(gates) == 1:
+            models["Aegis-Fast"] = FastLayer(sem_gate=gates[0])
+        else:
+            for g in gates:
+                models[f"Aegis-Fast@{g:g}"] = FastLayer(sem_gate=g, name=f"Aegis-Fast@{g:g}")
     return models
 
 
@@ -65,12 +73,12 @@ def _log_wandb(rows, robust_rows):
 
 
 def run(use_guard=False, with_fast=True, wandb_log=False,
-        guard_model="protectai/deberta-v3-base-prompt-injection-v2"):
+        guard_model="protectai/deberta-v3-base-prompt-injection-v2", fast_sem_gates=(0.85,)):
     train_df, test_sets = D.assemble()
     Xtr, ytr = train_df.text.to_numpy(), train_df.label.to_numpy()
 
     print("\nTraining detectors...")
-    models = build_models(with_fast)
+    models = build_models(with_fast, fast_sem_gates)
     for name, m in models.items():
         m.fit(Xtr, ytr); print(f"  trained {name}")
 
@@ -123,5 +131,8 @@ if __name__ == "__main__":
     ap.add_argument("--no-fast", action="store_true")
     ap.add_argument("--wandb", action="store_true")
     ap.add_argument("--guard-model", default="protectai/deberta-v3-base-prompt-injection-v2")
+    ap.add_argument("--sem-gates", default="0.85", help="FastLayer sem_gate sweep, e.g. 0.85,0.90,0.95")
     a = ap.parse_args()
-    run(use_guard=a.guard, with_fast=not a.no_fast, wandb_log=a.wandb, guard_model=a.guard_model)
+    gates = tuple(float(x) for x in a.sem_gates.split(","))
+    run(use_guard=a.guard, with_fast=not a.no_fast, wandb_log=a.wandb,
+        guard_model=a.guard_model, fast_sem_gates=gates)

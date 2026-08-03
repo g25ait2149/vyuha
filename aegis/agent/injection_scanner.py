@@ -13,6 +13,8 @@ the giveaway is an imperative aimed at the model + exfiltration/override languag
 import re
 import numpy as np
 
+from ..normalize.normalize import normalize
+
 # High-precision indirect-injection signals.
 RULES = {
     "override":   re.compile(r"\b(ignore|disregard|forget|override|bypass)\b.{0,40}\b(previous|prior|above|earlier|all|the)\b.{0,20}\b(instruction|prompt|rule|message|system)", re.I),
@@ -27,13 +29,17 @@ _SENT = re.compile(r"(?<=[.!?\n])\s+")
 
 
 class InjectionScanner:
-    def __init__(self, detector=None, threshold=0.5):
+    def __init__(self, detector=None, threshold=0.5, normalize_content=True):
         self.detector = detector            # optional Aegis FastLayer / guard (has .proba)
         self.threshold = threshold
+        self.normalize_content = normalize_content   # de-obfuscate before the rules (L0)
 
     def scan(self, content):
         content = str(content)
-        fired = {k: bool(rx.search(content)) for k, rx in RULES.items()}
+        # de-obfuscate first so a Base64 / homoglyph / char-spaced injection is scored in
+        # readable form; the multi-view normalize() output exposes the recovered instruction.
+        text = normalize(content, full=True) if self.normalize_content else content
+        fired = {k: bool(rx.search(text)) for k, rx in RULES.items()}
         rule_score = max([WEIGHT[k] for k, v in fired.items() if v] + [0.0])
         ml = float(self.detector.proba([content])[0]) if self.detector is not None else 0.0
         score = max(rule_score, ml)

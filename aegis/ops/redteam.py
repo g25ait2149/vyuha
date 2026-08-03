@@ -61,3 +61,37 @@ class RedTeam:
         if verbose:
             print(f"\nweakest against: {worst[0]} (ASR={worst[1]['asr']:.2f})")
         return rows
+
+    def run_adaptive(self, seed_attacks, compose=True, verbose=True):
+        """Adaptive attacker ('the attacker moves second'): for each seed, try every mutator
+        and (optionally) pairwise compositions, and keep the STRONGEST evasion. Reports the
+        adaptive ASR - the fraction of seeds for which some mutation slips below threshold -
+        which is what a resourced attacker achieves and is always >= any single static mutator.
+        This is the honest, standard-aligned way to claim robustness (static per-mutator numbers
+        understate the true attack surface)."""
+        seeds = list(seed_attacks)
+        names = [n for n in self.mutators if n != "identity"]
+        transforms = dict(self.mutators)
+        if compose:                                   # attacker searches 2-step combinations
+            for a in names:
+                for b in names:
+                    if a != b:
+                        transforms[f"{a}+{b}"] = (lambda t, fa=self.mutators[a], fb=self.mutators[b]: fb(fa(t)))
+        evaded, best_counts = 0, {}
+        for s in seeds:
+            variants = {name: fn(s) for name, fn in transforms.items()}
+            scores = self._scores(list(variants.values()))
+            below = [(name, sc) for name, sc in zip(variants, scores) if sc < self.threshold]
+            if below:
+                evaded += 1
+                best = min(below, key=lambda kv: kv[1])[0]
+                best_counts[best] = best_counts.get(best, 0) + 1
+        out = {"adaptive_asr": evaded / max(len(seeds), 1), "evaded": evaded,
+               "n": len(seeds), "n_transforms": len(transforms), "best_counts": best_counts}
+        if verbose:
+            print(f"adaptive ASR (best mutation per seed): {out['adaptive_asr']:.2f}  "
+                  f"[{evaded}/{len(seeds)} seeds evaded, searching {len(transforms)} transforms]")
+            top = sorted(best_counts.items(), key=lambda kv: -kv[1])[:5]
+            if top:
+                print("strongest evasions:", ", ".join(f"{k}={v}" for k, v in top))
+        return out

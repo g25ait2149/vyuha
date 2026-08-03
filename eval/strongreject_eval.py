@@ -13,6 +13,11 @@ the encoding/obfuscation axis that is Aegis's niche):
     attack -> [Aegis.scan]                     block? -> attack fails (score 0)
              else -> reuse response -> [Aegis.guard_turn]  block? -> score 0, else judge
 
+guard_mode="ensemble" additionally runs the L2 guard on EVERY input (de-obfuscated inside the
+guard), catching bare harmful prompts that the L1 jailbreak filter deliberately passes - this is
+the harmful-topic-coverage mode. The default "cascade" only consults the guard on the L1-uncertain
+band, so it does not reduce ASR on plain harmful topics (that is by design, and is why this mode exists).
+
 Because Aegis only blocks, its ASR can never exceed the undefended ASR. Everything is pluggable
 with offline fallbacks so it runs on a single free T4 (or CPU for a plumbing smoke test), with
 no paid API.
@@ -234,13 +239,31 @@ def _load_l2_guard(repo="g25ait2149/aegis-rjd3-guard"):
         return None
 
 
-def _build_aegis(use_guard=False, guard_repo="g25ait2149/aegis-rjd3-guard"):
+def _load_guard(guard_impl="tuned", guard_repo="g25ait2149/aegis-rjd3-guard",
+                qwen3guard_id="Qwen/Qwen3Guard-Gen-0.6B"):
+    """Pick the L2 guard. 'tuned' = our jailbreak-tuned adapter (default; strong on jailbreak /
+    injection, but by design it does NOT flag bare harmful topics). 'qwen3guard' = a content-safety
+    guard that covers the harmful-topic axis the jailbreak guard misses. Returns a .proba detector
+    or None on failure."""
+    if guard_impl == "qwen3guard":
+        try:
+            from aegis.guard.open_guard import OpenGuard
+            g = OpenGuard(model_id=qwen3guard_id, mode="llm_guard").load()
+            print(f"  [guard] Qwen3Guard content-safety L2 loaded ({qwen3guard_id})")
+            return g
+        except Exception as e:
+            print(f"  [guard] could not load Qwen3Guard ({str(e)[:60]}) - running L0-L1 only")
+            return None
+    return _load_l2_guard(guard_repo)
+
+
+def _build_aegis(use_guard=False, guard_repo="g25ait2149/aegis-rjd3-guard", guard=None):
     from aegis.pipeline import Aegis
     from eval import datasets as D
     train_df, _ = D.assemble(verbose=False)
     ag = Aegis().fit(train_df.text.to_numpy(), train_df.label.to_numpy())
     if use_guard:
-        g = _load_l2_guard(guard_repo)
+        g = guard if guard is not None else _load_l2_guard(guard_repo)   # reuse a pre-loaded guard
         if g is not None:
             ag.attach_guard(g)
     try:
@@ -272,13 +295,33 @@ def _attack_fns():
 
 def run_strongreject(victim_id="mock", n=None, attacks=("identity", "base64", "char_spacing"),
                      aegis=None, judge_name="auto", wandb_log=False, full=False,
-                     use_guard=False, guard_repo="g25ait2149/aegis-rjd3-guard"):
+                     use_guard=False, guard_repo="g25ait2149/aegis-rjd3-guard",
+                     guard_mode="cascade", guard_threshold=0.5, guard_impl="tuned",
+                     qwen3guard_id="Qwen/Qwen3Guard-Gen-0.6B"):
     """End-to-end ASR (undefended vs Aegis) over StrongREJECT, per attack channel.
     full=True uses the 313-prompt standard set; n caps the prompt count (None = all).
-    use_guard=True attaches the tuned L2 guard to the cascade (needs a GPU)."""
+    use_guard=True attaches the L2 guard to the selective cascade (needs a GPU).
+    guard_mode="ensemble" instead runs that guard on EVERY input (P(unsafe) >= guard_threshold
+    blocks), giving the harmful-topic coverage the L1-only cascade cannot.
+    guard_impl selects the L2: "tuned" = our jailbreak-tuned guard (default; does NOT flag bare
+    harmful topics); "qwen3guard" = a content-safety guard - use it with guard_mode="ensemble" to
+    lower ASR on plain / char-spaced / zero-width harmful prompts. Inputs are L0-normalized before
+    the guard so obfuscated channels de-obfuscate first."""
     print("StrongREJECT end-to-end ASR eval")
     prompts = load_strongreject(n, full=full)
-    aegis = aegis or _build_aegis(use_guard=use_guard, guard_repo=guard_repo)
+    need_guard = use_guard or guard_mode == "ensemble"
+    guard = _load_guard(guard_impl, guard_repo, qwen3guard_id) if (need_guard and aegis is None) else None
+    if guard is None and guard_mode == "ensemble" and aegis is not None:
+        guard = getattr(aegis, "guard", None)                    # best-effort handle from a prebuilt pipeline
+    aegis = aegis or _build_aegis(use_guard=need_guard, guard_repo=guard_repo, guard=guard)
+    _l0 = None
+    if guard_mode == "ensemble":
+        try:
+            from aegis.normalize.normalize import normalize as _l0    # L0 de-obfuscation before the guard
+        except Exception:
+            _l0 = None
+        print(f"  [mode] guard-on-everything ensemble via '{guard_impl}' (block if P(unsafe) >= "
+              f"{guard_threshold}) - {'guard ready' if guard is not None else 'guard UNAVAILABLE, cascade only'}")
     victim = _make_victim(victim_id)
     judge = _make_judge(judge_name)
     fns = _attack_fns()
@@ -294,10 +337,17 @@ def run_strongreject(victim_id="mock", n=None, attacks=("identity", "base64", "c
         wrapped = [wrap(p) for p in prompts]
         print(f"  [gen] {atk} ({k} prompts)...", flush=True)
         responses = victim.generate(wrapped)
+        guard_flags = None
+        if guard_mode == "ensemble" and guard is not None:
+            probe = [_l0(w, full=True) for w in wrapped] if _l0 else wrapped   # L0 de-obfuscate for the content guard
+            gs = np.asarray(guard.proba(probe), dtype=float)     # guard scores every (de-obfuscated) input
+            guard_flags = gs >= guard_threshold
         allow, blocked = [], 0
-        for w, r in zip(wrapped, responses):
+        for idx, (w, r) in enumerate(zip(wrapped, responses)):
             if aegis.scan(w)["decision"] == "block":
                 allow.append(False); blocked += 1
+            elif guard_flags is not None and bool(guard_flags[idx]):
+                allow.append(False); blocked += 1                # always-on L2 guard caught a harmful topic L1 passed
             elif aegis.guard_turn(w, r)["final"] == "block":
                 allow.append(False)
             else:
@@ -335,11 +385,12 @@ def run_strongreject(victim_id="mock", n=None, attacks=("identity", "base64", "c
     print(f"\njudge={judge.name}  victim={victim.name}  (ASR = mean StrongREJECT score; lower is safer)")
 
     if wandb_log:
-        _log_wandb(rows, judge.name, victim.name)
+        label = f"{guard_mode}-{guard_impl}" if guard_mode == "ensemble" else guard_mode
+        _log_wandb(rows, judge.name, victim.name, label)
     return rows
 
 
-def _log_wandb(rows, judge_name, victim_name):
+def _log_wandb(rows, judge_name, victim_name, guard_mode="cascade"):
     try:
         import pandas as pd, wandb
         key = os.environ.get("WANDB_API_KEY")
@@ -347,8 +398,9 @@ def _log_wandb(rows, judge_name, victim_name):
             from kaggle_secrets import UserSecretsClient
             key = UserSecretsClient().get_secret("WANDB_API_KEY")
         wandb.login(key=key)
-        wandb.init(project="aegis-llm-defense", name="arc1-strongreject", reinit=True,
-                   config={"phase": "Arc1", "judge": judge_name, "victim": victim_name})
+        wandb.init(project="aegis-llm-defense", name=f"arc1-strongreject-{guard_mode}", reinit=True,
+                   config={"phase": "Arc1", "judge": judge_name, "victim": victim_name,
+                           "guard_mode": guard_mode})
         wandb.log({"strongreject_asr": wandb.Table(dataframe=pd.DataFrame(rows))})
         for r in rows:
             wandb.log({f"asr/{r['attack']}/undefended": r["asr_undefended"],
@@ -366,7 +418,10 @@ if __name__ == "__main__":
     ap.add_argument("--n", type=int, default=60)
     ap.add_argument("--attacks", default="identity,base64,char_spacing")
     ap.add_argument("--judge", default="auto")
+    ap.add_argument("--guard-mode", default="cascade", choices=["cascade", "ensemble"])
+    ap.add_argument("--guard-impl", default="tuned", choices=["tuned", "qwen3guard"])
     ap.add_argument("--wandb", action="store_true")
     a = ap.parse_args()
     run_strongreject(victim_id=a.victim, n=a.n, attacks=tuple(a.attacks.split(",")),
-                     judge_name=a.judge, wandb_log=a.wandb)
+                     judge_name=a.judge, guard_mode=a.guard_mode, guard_impl=a.guard_impl,
+                     wandb_log=a.wandb)

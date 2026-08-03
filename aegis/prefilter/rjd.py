@@ -12,7 +12,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import HistGradientBoostingClassifier
 
-from ..normalize.normalize import normalize
+from ..normalize.normalize import normalize, normalize_views
 from .features import featurize, OVERRIDE, DEVMODE, REFUSAL
 from .attacks import augment
 
@@ -83,8 +83,19 @@ class RJDDetector:
 
     def proba(self, X):
         X = list(X)
-        Xn = [self._prep(t) for t in X]
-        p = self._mix(X, Xn)
-        if self.calib:
-            return self.cal.predict_proba(p.reshape(-1, 1))[:, 1]
-        return p
+        if not self.norm:
+            p = self._mix(X, [str(t) for t in X])
+            return self.cal.predict_proba(p.reshape(-1, 1))[:, 1] if self.calib else p
+        # Recall-preserving multi-view max: score each de-obfuscation view on its own and keep the
+        # highest, so a long obfuscation (character-spacing) can't dilute a short recovered
+        # instruction inside one concatenated string. Non-obfuscated text has only [base], so its
+        # score is unchanged (no over-refusal cost). Views are flattened and scored in one batch.
+        flat, owner = [], []
+        for i, t in enumerate(X):
+            for v in normalize_views(t):
+                flat.append(v); owner.append(i)
+        pv = self._mix(flat, flat)
+        owner = np.asarray(owner)
+        p = np.array([float(pv[owner == i].max()) if (owner == i).any() else 0.0
+                      for i in range(len(X))])
+        return self.cal.predict_proba(p.reshape(-1, 1))[:, 1] if self.calib else p

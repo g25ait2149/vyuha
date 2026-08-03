@@ -71,15 +71,21 @@ def _despace(text: str) -> str:
     return " ".join(p for p in out if p)
 
 
-def normalize(text, full: bool = True) -> str:
-    """De-obfuscate `text`. With full=True, append decoded/de-leet/de-spaced views."""
-    text = str(text)
-    base = unicodedata.normalize("NFKC", text)
+def _base_normalize(text) -> str:
+    """NFKC + strip invisibles/bidi + fold homoglyphs. The always-applied clean view."""
+    base = unicodedata.normalize("NFKC", str(text))
     base = _strip_invisibles(base)
-    base = "".join(CONFUSABLE.get(ch.lower(), ch) for ch in base)
-    if not full:
-        return base
+    return "".join(CONFUSABLE.get(ch.lower(), ch) for ch in base)
 
+
+def normalize_views(text) -> list:
+    """De-obfuscation views as a LIST: the clean base first, then any recovered views (decoded
+    Base64, de-ROT13, de-leetspeak, de-spaced). Scoring each view SEPARATELY and taking the max
+    lets a short recovered instruction (e.g. from character-spacing) be caught without a long raw
+    obfuscation diluting it inside one concatenated string - which is what defeats a single-string
+    TF-IDF score. Non-obfuscated text yields just [base], so behaviour is unchanged there."""
+    text = str(text)
+    base = _base_normalize(text)
     views = [base]
     views += _decode_base64_blobs(text)
     # ROT13 hint (cheap, only when an explicit cue is present).
@@ -94,7 +100,16 @@ def normalize(text, full: bool = True) -> str:
     toks = base.split()
     if toks and sum(len(w) for w in toks) / len(toks) < 2.2:   # spaced-out / ASCII-art
         views.append("[despace] " + _despace(base))
-    return "  ".join(views)
+    return views
+
+
+def normalize(text, full: bool = True) -> str:
+    """De-obfuscate `text`. full=False -> just the cleaned base; full=True -> base plus the
+    recovered views joined into one string (kept for back-compat; new code that wants to avoid
+    dilution should score normalize_views() independently and take the max)."""
+    if not full:
+        return _base_normalize(text)
+    return "  ".join(normalize_views(text))
 
 
 def spotlight(untrusted: str, marker: str = "DATA") -> str:

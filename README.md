@@ -99,46 +99,54 @@ L1 detectors on the in-distribution test split (n=1605). Latency is CPU-only, pe
 
 | Detector | ROC-AUC | Recall@1%FPR | Over-refusal (FRR) | F1 | Latency |
 |---|---|---|---|---|---|
-| Keyword baseline | 0.680 | 0.093 | 0.120 | 0.506 | ~0.3 ms |
-| Word TF-IDF | 0.934 | 0.396 | 0.064 | 0.783 | ~0.5 ms |
-| RJD-v1 | 0.932 | 0.340 | 0.043 | 0.765 | ~9 ms |
-| RJD-v2 (L1 core) | 0.925 | 0.355 | 0.037 | 0.766 | ~9 ms |
-| Aegis-Fast (L1 ensemble) | 0.875 | 0.164 | 0.169 | 0.662 | ~18 ms |
+| Keyword baseline | 0.680 | 0.093 | 0.120 | 0.506 | ~0.2 ms |
+| Word TF-IDF | 0.934 | 0.396 | 0.064 | 0.783 | ~0.4 ms |
+| RJD-v1 | 0.929 | 0.313 | 0.045 | 0.770 | ~8 ms |
+| **RJD-v2 (shipped L1)** | **0.923** | **0.330** | **0.044** | 0.768 | **~8 ms** |
+| Aegis-Fast (ensemble, not default) | 0.875 | 0.164 | 0.175 | 0.665 | ~17 ms |
+| protectai DeBERTa guard (GPU) | 0.896 | 0.210 | 0.113 | 0.711 | ~62 ms |
 
-Recall under obfuscation, where keyword and plain TF-IDF filters collapse to near zero because
-they never see past the disguise, while RJD de-obfuscates first:
+RJD-v2 is the shipped L1: it matches the GPU DeBERTa guard's obfuscation robustness at ~8 ms on CPU
+with lower over-refusal (FRR 0.044 vs 0.113). The `FastLayer` ensemble adds a semantic + signature
+signal but raises FRR to 0.175 for negligible gain (its templates false-fire on benign text such as
+the name "Dan"), so it is optional, not the default.
 
-| Attack | Keyword | Word TF-IDF | RJD-v2 | Aegis-Fast |
-|---|---|---|---|---|
-| Base64 | 0.00 | 0.00 | 1.00 | 1.00 |
-| ROT13 | 0.00 | 0.00 | 1.00 | 1.00 |
-| Leetspeak | 0.37 | 0.73 | 0.96 | 0.96 |
-| Homoglyph | 0.34 | 0.72 | 0.85 | 0.87 |
-| Zero-width | 0.19 | 0.67 | 0.69 | 0.73 |
-| Emoji-smuggle | 0.21 | 0.70 | 0.76 | 0.79 |
-| ASCII-art (held out) | 0.00 | 0.00 | 0.53 | 0.56 |
+Recall under obfuscation, including a **composition** and two **held-out** variants the detector
+never trained on - keyword and plain TF-IDF collapse to zero because they never see past the disguise:
 
-Against a public neural guardrail (`protectai/deberta-v3-base-prompt-injection-v2`) on the same
-sets, RJD-v2 matches or beats it on three of four benchmarks: in-distribution ROC-AUC 0.925 vs
-0.896, HarmBench 0.708 vs 0.309, WildGuardMix a tie, losing only JailbreakBench (0.441 vs
-0.600). It does so at about 8x lower latency (~9 ms vs 63 ms) and CPU-only. DeBERTa is trained
-for injection rather than harmful-instruction jailbreaks, so HarmBench is somewhat outside its
-domain, but the comparison is on identical data and reproducible in the P1 notebook.
+| Attack | Keyword | Word TF-IDF | RJD-v2 |
+|---|---|---|---|
+| Base64 | 0.00 | 0.00 | 1.00 |
+| ROT13 | 0.00 | 0.00 | 1.00 |
+| Leetspeak | 0.37 | 0.73 | 0.97 |
+| Homoglyph | 0.34 | 0.72 | 0.70 |
+| Zero-width | 0.19 | 0.67 | 0.70 |
+| Character-spacing | 0.00 | 0.00 | **1.00** |
+| Full-width (held out) | 0.00 | 0.00 | 0.70 |
+| Wider-spacing (held out) | 0.00 | 0.00 | **1.00** |
 
-The upper layers, evaluated in their own notebooks:
+Character-spacing was the prior open gap (red-team ASR 0.83). A multi-view-max + adaptive-gap
+de-spacing fix closed it to **0.00** and *generalizes* to the held-out wider-spacing variant it never
+trained on. Against the public DeBERTa guard on identical data, RJD-v2 matches its obfuscation
+robustness (both ~1.0 on Base64/ROT13/char-spacing) at ~8x lower latency, CPU-only - so the defensible
+edge is cost, reproducibility, and held-out generalization, not obfuscation robustness alone.
 
-| Layer | Result on its benchmark |
+The other two attack axes and the upper layers, evaluated in their own notebooks:
+
+| Layer / axis | Result |
 |---|---|
-| L2 guard (QLoRA, 1.5B) | Cross-benchmark ROC-AUC 0.72-0.92 (AdvBench 0.72, HarmBench 0.74, WildGuardMix 0.63) at FRR 0.03-0.06. It generalizes to attacks it never trained on, where every classical detector fades. This is the reason the cascade escalates the uncertain band to the guard. |
-| L3 agent | Injection detection, dangerous-action block, and benign pass all 1.00 on the indirect-injection scenario set (email / web / calendar / document / tool-poisoning). |
-| L4 output | Precision, recall, F1 all 1.00 on the labeled leak/harm probe: PII redacted, secrets and system-prompt leaks and unsafe compliance blocked, refusals and benign replies allowed. |
-| L5 ops | Automated red-team mean attack-success-rate 0.33 (Base64 and role-play channels fully closed; character-spacing is the current open gap). The drift monitor trips (PSI 11.8) on an attack surge. |
+| L2 content guard (Qwen3Guard-0.6B) | Carries harmful-topic (XSTest unsafe 0.79) and semantic (PAIR 0.90) coverage at 4.8% over-refusal - the axes a surface L1 cannot. |
+| L2 tuned guard (QLoRA 1.5B) | Jailbreak-only: cross-benchmark ROC-AUC 0.72-0.92 on unseen jailbreaks, but inert on harmful-topic (XSTest 0.00) and semantic (PAIR 0.03). Kept as a heavier jailbreak guard, not a content guard. |
+| Semantic attacks (PAIR, n=103) | L1 flags 6.8%, tuned guard 2.9%, content guard 90.3% - semantic attacks are an L2 problem, measured. Estimated ~10x attacker query-cost inflation behind the guard. |
+| Over-refusal (XSTest) | RJD-v2 0.008; content guard 0.048. |
+| L3 agent | Injection-under-obfuscation detection 1.00 vs 0.00-0.17 for a regex-only baseline; benign pass 1.00. Behind CaMeL's capability guarantees (see the paper). |
+| L4 output | Precision = recall = F1 = 1.00 on the labeled leak/harm probe. Response-harm scoring should use the content guard, not the L1 detector. |
+| L5 ops + self-hardening | Red-team mean ASR 0.24 -> 0.14; two self-hardening cycles (character-spacing 0.83 -> 0.00; adaptive 1.00 -> 0.50 as survivors shifted from obfuscation to injection-wrappers). Drift monitor trips (PSI 11.8) on an attack surge. |
 
-A note on the L1 ensemble: Aegis-Fast raises the semantic gate so it only fires on
-near-duplicate attacks. That keeps over-refusal in a usable range (FRR 0.169) and lets subtle
-paraphrases pass the cheap tier on purpose, to be caught by the L2 guard rather than by a
-trigger-happy L1. RJD-v2 alone is the better single detector in-distribution; the value of the
-whole is the layering, not any one layer.
+The honest bottom line: obfuscation is closed cheaply at L1 (RJD-v2), while harmful-topic and
+semantic attacks - which by design defeat a surface detector - are carried by a composed content
+guard (Qwen3Guard). The value is the layered division of labour, not any single classifier; where
+existing work is stronger (content guards for semantics, CaMeL for agents), we say so.
 
 ## Standards coverage
 

@@ -50,27 +50,31 @@ Figures below are read from the evaluation harness (real corpora: 1364 in-the-wi
 4000 benign, plus JailbreakBench / AdvBench / HarmBench / WildGuardMix) and logged to W&B.
 Recall is reported at a fixed 1% FPR.
 
-- **L1 core (RJD-v2), in-distribution (n=1605):** ROC-AUC **0.925**, F1 **0.766**, over-refusal
-  **FRR 0.037**, ~9 ms/prompt CPU-only. It matches or beats the public DeBERTa injection guard
-  (`protectai/deberta-v3-base-prompt-injection-v2`) on **3 of 4** benchmarks (in-distribution
-  0.925 vs 0.896; HarmBench 0.708 vs 0.309; WildGuardMix a tie; loses only JailbreakBench) at
-  about **8x lower latency**.
-- **Obfuscation robustness:** RJD de-obfuscates before scoring, so **Base64 and ROT13 recall
-  = 1.00** where keyword/TF-IDF score 0.00 (leetspeak 0.96, homoglyph 0.85-0.87, zero-width
-  ~0.73). The recall-preserving combiner keeps **L1 >= RJD-v2** on every slice.
-- **L1 ensemble (Aegis-Fast):** the semantic signal is gated at 0.85 so it fires only on
-  near-duplicate attacks, holding over-refusal to **FRR 0.169**; subtle paraphrases are passed
-  to L2 on purpose rather than over-blocked at L1.
-- **L2 guard (QLoRA, 1.5B):** cross-benchmark ROC-AUC **0.72-0.92** (AdvBench 0.72, HarmBench
-  0.74, WildGuardMix 0.63) at **FRR 0.03-0.06** - it generalizes to attacks it never trained
-  on, which is why the cascade escalates the uncertain band to it.
-- **L3 agent:** injection-detection, dangerous-action-block, and benign-pass all **1.00** on
-  the indirect-injection scenario set.
-- **L4 output:** flag **precision = recall = F1 = 1.00** on the labeled leak/harm probe.
-- **L5 ops:** automated red-team **mean ASR 0.33** across nine mutators - encoding and
-  role-play channels fully closed (ASR 0.00), **character-spacing still open (ASR 1.00)** and
-  flagged as the next hardening target; the **PSI drift monitor trips (PSI 11.8)** on an
-  attack-surge window.
+- **L1 (RJD-v2, shipped), in-distribution (n=1605):** ROC-AUC **0.923**, F1 **0.768**, over-refusal
+  **FRR 0.044**, ~8 ms/prompt CPU-only. It matches the public DeBERTa injection guard
+  (`protectai/deberta-v3-base-prompt-injection-v2`, 0.896 / FRR 0.113, GPU) at **~8x lower latency**
+  and **lower over-refusal**, CPU-only.
+- **Obfuscation robustness:** recall = **1.00** on Base64, ROT13, **character-spacing**, and a
+  **held-out wider-spacing** variant it never trained on (leetspeak 0.97, homoglyph/zero-width/
+  full-width ~0.70). Character-spacing was the prior open gap (red-team ASR 0.83); a multi-view-max +
+  adaptive-gap de-spacing fix closed it to **0.00** and generalizes to the held-out variant.
+- **L1 ensemble (Aegis-Fast) - NOT the default:** adding a semantic + signature signal raises
+  over-refusal to **FRR 0.175** for negligible gain (its templates false-fire on benign text), so
+  RJD-v2 ships as L1 and the ensemble is optional.
+- **L2 content guard (Qwen3Guard-0.6B):** carries harmful-topic (**XSTest unsafe 0.79**) and semantic
+  (**PAIR 0.90**) coverage at **4.8%** over-refusal - the axes a surface L1 cannot.
+- **L2 tuned guard (QLoRA, 1.5B):** cross-benchmark ROC-AUC **0.72-0.92** on unseen jailbreaks at FRR
+  0.03-0.06, but **jailbreak-only** (inert on harmful-topic XSTest 0.00 and semantic PAIR 0.03).
+- **Semantic attacks (PAIR, n=103):** L1 flags **6.8%**, tuned guard 2.9%, content guard **90.3%**;
+  estimated **~10x** attacker query-cost inflation behind the content guard. Over-refusal (XSTest):
+  RJD-v2 **0.008**.
+- **L3 agent:** injection-under-obfuscation detection **1.00** vs 0.00-0.17 for a regex baseline;
+  benign-pass 1.00. Behind CaMeL's capability guarantees.
+- **L4 output:** flag **precision = recall = F1 = 1.00** on the labeled leak/harm probe (response-harm
+  scoring should use the content guard, not the L1 detector).
+- **L5 ops + self-hardening:** red-team **mean ASR 0.24 -> 0.14**; two self-hardening cycles
+  (character-spacing 0.83 -> 0.00; adaptive 1.00 -> 0.50). **PSI drift monitor trips (PSI 11.8)** on
+  an attack-surge window.
 
 Point estimates depend on the run and on gated-dataset access; the P1-P6 notebooks reproduce
 them end to end.

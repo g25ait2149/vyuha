@@ -18,7 +18,8 @@ Kaggle T4), so the results are actually reproducible without a lab budget.
 
 Most "LLM guardrails" are a single classifier, and a single classifier is a fixed target.
 Given enough attempts an attacker finds a wording it scores as safe: encode the payload in
-Base64, swap in look-alike Unicode characters, translate it, or wrap it in a role-play.
+Base64, swap in look-alike Unicode characters, translate it, wrap it in a role-play, or -
+hardest of all - use fluent persuasion that carries no surface tell at all.
 Prompt injection is number one on the OWASP LLM Top 10, and it isn't going anywhere.
 
 Aegis makes the opposite bet. Instead of one strong filter it runs six cheap, independent
@@ -33,9 +34,11 @@ A request flows top to bottom; the response is checked on the way back out.
 ```
         prompt (+ retrieved / tool content)
               |
-   L0  normalize      undo obfuscation (NFKC, Base64, homoglyphs, zero-width); tag untrusted text
-   L1  fast layer     RJD-v2 detector + nearest-attack similarity + signatures; runs on everything
-   L2  guard          a small QLoRA-tuned classifier, only for the uncertain middle band
+   L0  normalize      undo obfuscation incl. compositions (NFKC, Base64, homoglyph, zero-width,
+                      adaptive de-spacing), multi-view; tag untrusted text
+   L1  fast layer     RJD-v2 detector (de-obfuscation + multi-view max); CPU, runs on everything
+   L2  content guard  Qwen3Guard for harmful-topic + semantic attacks (a surface L1 can't see);
+                      + an optional QLoRA jailbreak guard; on the uncertain band or all inputs
    L3  agent          scan tool/RAG content for injection; least-privilege tools; dual-LLM
               |
           [ the model answers ]
@@ -170,10 +173,11 @@ MITRE ATLAS, and ISO/IEC 42001, is in [`docs/STANDARDS.md`](docs/STANDARDS.md).
 
 ## Reproduce
 
-Six Kaggle notebooks under [`notebooks/`](notebooks/) rebuild the project phase by phase
-(P1 evaluation harness through P6 packaging). Each one clones this repo, so the workflow is
-`git push` here, then Run All on Kaggle. Turn Internet on; the P3 guard wants a GPU, the
-rest are CPU-only.
+Ten Kaggle notebooks under [`notebooks/`](notebooks/) rebuild the project and its evaluations:
+P1 (harness) through P6 (packaging), plus P7-P10 - StrongREJECT end-to-end ASR, XSTest
+over-refusal, agent injection-under-obfuscation, and semantic-attack (PAIR) detection. Each one
+clones this repo, so the workflow is `git push` here, then Run All on Kaggle. Turn Internet on;
+the guard notebooks want a GPU, the rest are CPU-only.
 
 ```bash
 python -m eval.run_baselines          # the P1 comparison table, CPU

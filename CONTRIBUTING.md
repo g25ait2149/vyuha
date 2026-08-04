@@ -6,7 +6,7 @@ or an additional evaluation.
 ## Development setup
 
 ```bash
-git clone https://github.com/g25ait2149/aegis.git
+git clone https://github.com/g25ait2149/vyuha.git
 cd vyuha
 python -m venv .venv && source .venv/bin/activate   # optional
 pip install -e ".[dev]"

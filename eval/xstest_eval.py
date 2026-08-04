@@ -76,7 +76,7 @@ def load_xstest():
     return list(_FALLBACK_SAFE), list(_FALLBACK_UNSAFE)
 
 
-def _load_l2_guard(repo="g25ait2149/aegis-rjd3-guard"):
+def _load_l2_guard(repo="g25ait2149/vyuha-rjd3-guard"):
     """Load the tuned L2 guard (published LoRA adapter). Returns None on failure."""
     try:
         from vyuha.guard.guard_model import TunedGuard
@@ -89,7 +89,7 @@ def _load_l2_guard(repo="g25ait2149/aegis-rjd3-guard"):
 
 
 def run_xstest(with_fast=True, threshold=0.5, wandb_log=False, use_guard=False,
-               guard_repo="g25ait2149/aegis-rjd3-guard", qwen3guard=False,
+               guard_repo="g25ait2149/vyuha-rjd3-guard", qwen3guard=False,
                qwen3guard_id="Qwen/Qwen3Guard-Gen-0.6B"):
     """Over-refusal (on safe) and detection (on unsafe) per detector, on XSTest.
     use_guard=True adds the tuned L2 guard and the Vyuha L1+L2 cascade (needs a GPU);

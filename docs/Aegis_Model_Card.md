@@ -10,7 +10,7 @@ whole L0-L5 stack and its fine-tuned L2 guard adapter.
 - **Owner:** U E Sai Pavan Vamshi Krishna (G25AIT2149), IIT Jodhpur - CSL6010. Successor to RJD-v2.
 - **License:** MIT.
 - **Type:** Defense-in-depth guardrail pipeline. Components: rule/statistical detectors (L0, L1, L3, L4, L5) and a **QLoRA-fine-tuned** safety classifier (L2) on a Qwen2.5-1.5B base (4-bit + LoRA adapter).
-- **Repository / artifacts:** GitHub `g25ait2149/aegis`; L2 adapter + card on the Hugging Face Hub; metrics on Weights & Biases.
+- **Repository / artifacts:** GitHub `g25ait2149/vyuha`; L2 adapter + card on the Hugging Face Hub; metrics on Weights & Biases.
 - **Aligned to:** OWASP Top 10 for LLM Applications (LLM01), NIST AI RMF.
 
 ## Intended use

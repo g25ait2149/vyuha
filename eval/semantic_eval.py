@@ -93,7 +93,7 @@ def _benign_set(n=250):
 
 
 def run_semantic_eval(with_fast=True, use_guard=False, qwen3guard=False,
-                      guard_repo="g25ait2149/aegis-rjd3-guard",
+                      guard_repo="g25ait2149/vyuha-rjd3-guard",
                       qwen3guard_id="Qwen/Qwen3Guard-Gen-0.6B",
                       threshold=0.5, n=None, wandb_log=False):
     """Detection rate on semantic (PAIR) jailbreaks vs over-refusal (FPR) on benign, per detector.

@@ -4,7 +4,7 @@
 # ============================================================================
 import sys, os, glob, subprocess
 REPO_URL = "https://github.com/YOUR_USERNAME/aegis.git"     # <-- set this once
-DEST = "/kaggle/working/aegis_src"
+DEST = "/kaggle/working/vyuha_src"
 
 # Private repo? add a GITHUB_TOKEN Kaggle Secret and use:
 # from kaggle_secrets import UserSecretsClient

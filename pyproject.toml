@@ -31,8 +31,8 @@ dev   = ["pytest>=7"]
 vyuha = "vyuha.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/g25ait2149/aegis"
-Repository = "https://github.com/g25ait2149/aegis"
+Homepage = "https://github.com/g25ait2149/vyuha"
+Repository = "https://github.com/g25ait2149/vyuha"
 
 [tool.setuptools.packages.find]
 include = ["vyuha*", "eval*", "service*"]

@@ -13,7 +13,7 @@ authors:
     affiliation: "Indian Institute of Technology Jodhpur"
 version: "0.6.0"
 license: MIT
-repository-code: "https://github.com/g25ait2149/aegis"
+repository-code: "https://github.com/g25ait2149/vyuha"
 keywords:
   - llm-security
   - jailbreak-detection

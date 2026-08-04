@@ -8,7 +8,7 @@ adapter + tokenizer to `out_dir` - published to HF and loaded by guard_model.Tun
     from vyuha.guard.train_guard import train_guard
     from eval import datasets as D
     tr, _ = D.assemble(verbose=False)
-    train_guard(tr, base_model="Qwen/Qwen2.5-1.5B", out_dir="aegis_guard")
+    train_guard(tr, base_model="Qwen/Qwen2.5-1.5B", out_dir="vyuha_guard")
 
 Requires: transformers, peft, bitsandbytes, accelerate, datasets, torch (GPU).
 Version-adaptive: handles transformers' tokenizer->processing_class and
@@ -19,7 +19,7 @@ import pandas as pd
 
 
 def train_guard(train_df, val_df=None, base_model="Qwen/Qwen2.5-1.5B",
-                out_dir="aegis_guard", epochs=1, lr=2e-4, bsz=8, grad_accum=2,
+                out_dir="vyuha_guard", epochs=1, lr=2e-4, bsz=8, grad_accum=2,
                 max_len=256, use_4bit=True, balance=True, seed=42):
     import torch
     from datasets import Dataset

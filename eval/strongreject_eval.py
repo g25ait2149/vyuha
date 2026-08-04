@@ -227,7 +227,7 @@ def _make_judge(judge_name):
 # --------------------------------------------------------------------------------------------
 # Defense wiring + run
 # --------------------------------------------------------------------------------------------
-def _load_l2_guard(repo="g25ait2149/aegis-rjd3-guard"):
+def _load_l2_guard(repo="g25ait2149/vyuha-rjd3-guard"):
     """Load the tuned L2 guard (published LoRA adapter). Returns None on failure."""
     try:
         from vyuha.guard.guard_model import TunedGuard
@@ -239,7 +239,7 @@ def _load_l2_guard(repo="g25ait2149/aegis-rjd3-guard"):
         return None
 
 
-def _load_guard(guard_impl="tuned", guard_repo="g25ait2149/aegis-rjd3-guard",
+def _load_guard(guard_impl="tuned", guard_repo="g25ait2149/vyuha-rjd3-guard",
                 qwen3guard_id="Qwen/Qwen3Guard-Gen-0.6B"):
     """Pick the L2 guard. 'tuned' = our jailbreak-tuned adapter (default; strong on jailbreak /
     injection, but by design it does NOT flag bare harmful topics). 'qwen3guard' = a content-safety
@@ -257,7 +257,7 @@ def _load_guard(guard_impl="tuned", guard_repo="g25ait2149/aegis-rjd3-guard",
     return _load_l2_guard(guard_repo)
 
 
-def _build_vyuha(use_guard=False, guard_repo="g25ait2149/aegis-rjd3-guard", guard=None):
+def _build_vyuha(use_guard=False, guard_repo="g25ait2149/vyuha-rjd3-guard", guard=None):
     from vyuha.pipeline import Vyuha
     from eval import datasets as D
     train_df, _ = D.assemble(verbose=False)
@@ -295,7 +295,7 @@ def _attack_fns():
 
 def run_strongreject(victim_id="mock", n=None, attacks=("identity", "base64", "char_spacing"),
                      vyuha=None, judge_name="auto", wandb_log=False, full=False,
-                     use_guard=False, guard_repo="g25ait2149/aegis-rjd3-guard",
+                     use_guard=False, guard_repo="g25ait2149/vyuha-rjd3-guard",
                      guard_mode="cascade", guard_threshold=0.5, guard_impl="tuned",
                      qwen3guard_id="Qwen/Qwen3Guard-Gen-0.6B"):
     """End-to-end ASR (undefended vs Vyuha) over StrongREJECT, per attack channel.

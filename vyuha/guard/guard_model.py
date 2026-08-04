@@ -15,7 +15,7 @@ from ..normalize.normalize import normalize
 
 
 class TunedGuard:
-    def __init__(self, path="aegis_guard", base_model=None, max_len=256, device_map="auto"):
+    def __init__(self, path="vyuha_guard", base_model=None, max_len=256, device_map="auto"):
         self.path = path
         self.base_model = base_model
         self.max_len = max_len

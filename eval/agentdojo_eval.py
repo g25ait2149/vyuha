@@ -26,10 +26,10 @@ Defensive / evaluation use only; AgentDojo ships the (public) attacks.
 """
 
 
-def run_agentdojo_l3(api_key=None, model="gemini-2.0-flash-001", suite_name="banking",
+def run_agentdojo_l3(api_key=None, model="gemini-2.5-flash-lite", suite_name="banking",
                      attack_name="important_instructions", version="v1.2.2",
-                     n_user_tasks=4, n_injection_tasks=2, raise_on_injection=False,
-                     rpm_interval=6.0, logdir="agentdojo_runs", verbose=True):
+                     n_user_tasks=2, n_injection_tasks=1, raise_on_injection=False,
+                     rpm_interval=5.0, max_retries=4, logdir="agentdojo_runs", verbose=True):
     """Baseline vs Vyuha-L3 on an AgentDojo suite subset. Returns a dict of per-arm
     {utility_under_attack, injection_asr, security, n}. Heavy imports are lazy so importing this
     module never requires agentdojo/google to be installed."""
@@ -66,23 +66,27 @@ def run_agentdojo_l3(api_key=None, model="gemini-2.0-flash-001", suite_name="ban
             gap = time.time() - getattr(self, "_last_call", 0.0)
             if gap < rpm_interval:
                 time.sleep(rpm_interval - gap)
-            for attempt in range(10):
+            for attempt in range(max_retries):
                 try:
                     result = super().query(*args, **kwargs)
                     self._last_call = time.time()
                     return result
                 except Exception as e:
                     s = str(e).lower()
+                    # NOTE: every retry also counts against the daily quota, so we retry only a few
+                    # times (for genuine per-minute blips) then fail fast rather than burn the cap.
                     if any(t in s for t in ("429", "resource_exhausted", "rate limit", "quota", "exhausted")):
-                        wait = min(90, 10 * (attempt + 1))
+                        wait = min(30, 10 * (attempt + 1))
                         if verbose:
-                            print(f"    [rate-limit] backing off {wait}s (attempt {attempt + 1})")
+                            print(f"    [rate-limit] backing off {wait}s (attempt {attempt + 1}/{max_retries})")
                         time.sleep(wait)
                         continue
                     raise
             raise RuntimeError(
-                "Persistent rate-limiting after retries - likely the daily free-tier cap. "
-                "Retry after the midnight-Pacific reset; the logdir caches completed tasks so it resumes.")
+                "Hit the free-tier request cap. Most likely the DAILY cap for this model "
+                f"({model}) is exhausted - switch to a fresh bucket (e.g. gemini-2.5-flash-lite, "
+                "~1000/day) or wait for the midnight-Pacific reset. The logdir caches completed "
+                "tasks, so re-running resumes rather than repeating.")
 
     client = genai.Client(api_key=api_key)          # AI Studio free tier - NOT vertexai
     llm = _RateLimitedGoogleLLM(model, client)

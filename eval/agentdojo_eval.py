@@ -26,7 +26,28 @@ Defensive / evaluation use only; AgentDojo ships the (public) attacks.
 """
 
 
-def run_agentdojo_l3(api_key=None, model="gemini-2.5-flash-lite", suite_name="banking",
+def list_gemini_models(api_key=None):
+    """Print the models this key can actually call (generateContent-capable), so you don't have to
+    guess names. Free-tier availability changes and some IDs are retired for new keys."""
+    import os
+    api_key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    assert api_key, "Set GEMINI_API_KEY (a free Google AI Studio key)."
+    from google import genai
+    client = genai.Client(api_key=api_key)
+    names = []
+    for m in client.models.list():
+        actions = list(getattr(m, "supported_actions", None) or
+                       getattr(m, "supported_generation_methods", []) or [])
+        if (not actions or "generateContent" in actions) and "gemini" in m.name:
+            names.append(m.name.replace("models/", ""))
+    names = sorted(set(names))
+    print("Models your key can call (generateContent):")
+    for n in names:
+        print("  ", n)
+    return names
+
+
+def run_agentdojo_l3(api_key=None, model="gemini-2.5-flash", suite_name="banking",
                      attack_name="important_instructions", version="v1.2.2",
                      n_user_tasks=2, n_injection_tasks=1, raise_on_injection=False,
                      rpm_interval=5.0, max_retries=4, logdir="agentdojo_runs", verbose=True):

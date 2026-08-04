@@ -29,7 +29,7 @@ Defensive / evaluation use only; AgentDojo ships the (public) attacks.
 def run_agentdojo_l3(api_key=None, model="gemini-2.0-flash-001", suite_name="banking",
                      attack_name="important_instructions", version="v1.2.2",
                      n_user_tasks=4, n_injection_tasks=2, raise_on_injection=False,
-                     logdir="agentdojo_runs", verbose=True):
+                     rpm_interval=6.0, logdir="agentdojo_runs", verbose=True):
     """Baseline vs Vyuha-L3 on an AgentDojo suite subset. Returns a dict of per-arm
     {utility_under_attack, injection_asr, security, n}. Heavy imports are lazy so importing this
     module never requires agentdojo/google to be installed."""
@@ -58,22 +58,31 @@ def run_agentdojo_l3(api_key=None, model="gemini-2.0-flash-001", suite_name="ban
     if attack_name not in ATTACKS:
         raise ValueError(f"attack '{attack_name}' not registered. Available: {sorted(ATTACKS)}")
 
-    # ---- Gemini AI-Studio backend with free-tier rate-limit backoff -----------------------
+    # ---- Gemini AI-Studio backend: proactive throttle + backoff for the free tier ---------
+    # Proactively space calls >= rpm_interval seconds apart (6s -> ~10 req/min) to stay under
+    # the free-tier RPM limit, so we don't hammer-then-429; backoff is the safety net.
     class _RateLimitedGoogleLLM(GoogleLLM):
         def query(self, *args, **kwargs):
-            for attempt in range(8):
+            gap = time.time() - getattr(self, "_last_call", 0.0)
+            if gap < rpm_interval:
+                time.sleep(rpm_interval - gap)
+            for attempt in range(10):
                 try:
-                    return super().query(*args, **kwargs)
+                    result = super().query(*args, **kwargs)
+                    self._last_call = time.time()
+                    return result
                 except Exception as e:
                     s = str(e).lower()
                     if any(t in s for t in ("429", "resource_exhausted", "rate limit", "quota", "exhausted")):
-                        wait = min(75, 8 * (attempt + 1))
+                        wait = min(90, 10 * (attempt + 1))
                         if verbose:
                             print(f"    [rate-limit] backing off {wait}s (attempt {attempt + 1})")
                         time.sleep(wait)
                         continue
                     raise
-            return super().query(*args, **kwargs)
+            raise RuntimeError(
+                "Persistent rate-limiting after retries - likely the daily free-tier cap. "
+                "Retry after the midnight-Pacific reset; the logdir caches completed tasks so it resumes.")
 
     client = genai.Client(api_key=api_key)          # AI Studio free tier - NOT vertexai
     llm = _RateLimitedGoogleLLM(model, client)

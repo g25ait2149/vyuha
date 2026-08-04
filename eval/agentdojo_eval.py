@@ -53,7 +53,7 @@ def run_agentdojo_l3(api_key=None, model="gemini-2.0-flash-001", suite_name="ban
     from agentdojo.task_suite.load_suites import get_suite
     from agentdojo.types import text_content_block_from_string
 
-    from vyuha.agent import InjectionScanner
+    from vyuha.agent.injection_scanner import InjectionScanner
 
     if attack_name not in ATTACKS:
         raise ValueError(f"attack '{attack_name}' not registered. Available: {sorted(ATTACKS)}")

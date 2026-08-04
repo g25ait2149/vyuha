@@ -49,13 +49,28 @@ def list_gemini_models(api_key=None):
 
 _PROVIDERS = {
     # provider -> (base_url, api-key env var, default tool-calling model)
-    "groq":       ("https://api.groq.com/openai/v1", "GROQ_API_KEY", "llama-3.3-70b-versatile"),
+    "groq":       ("https://api.groq.com/openai/v1", "GROQ_API_KEY", "openai/gpt-oss-20b"),
     "cerebras":   ("https://api.cerebras.ai/v1", "CEREBRAS_API_KEY", "llama-3.3-70b"),
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "meta-llama/llama-3.3-70b-instruct"),
     # Gemini works for LISTING but 3.x models 400 on multi-turn tool calls (thought_signature),
     # which AgentDojo can't round-trip - kept for reference, not recommended for this benchmark.
     "gemini":     ("https://generativelanguage.googleapis.com/v1beta/openai/", "GEMINI_API_KEY", "gemini-flash-latest"),
 }
+
+
+def list_models(provider="groq", api_key=None, base_url=None):
+    """List the model IDs an OpenAI-compatible provider exposes (Groq / Cerebras / OpenRouter),
+    so you can pick a tool-calling one without guessing."""
+    import os
+    import openai
+    base, env, _ = _PROVIDERS.get(provider, (base_url, "OPENAI_API_KEY", None))
+    api_key = api_key or os.environ.get(env) or os.environ.get("OPENAI_API_KEY")
+    client = openai.OpenAI(api_key=api_key, base_url=base_url or base)
+    ids = sorted(m.id for m in client.models.list())
+    print(f"{provider} models:")
+    for i in ids:
+        print("  ", i)
+    return ids
 
 
 def run_agentdojo_l3(api_key=None, provider="groq", model=None, base_url=None,

@@ -58,6 +58,13 @@ def run_agentdojo_l3(api_key=None, model="gemini-2.5-flash-lite", suite_name="ba
     if attack_name not in ATTACKS:
         raise ValueError(f"attack '{attack_name}' not registered. Available: {sorted(ATTACKS)}")
 
+    # The important_instructions attack addresses the target model by name, resolved from the
+    # pipeline name via MODEL_NAMES. Newer Gemini IDs (e.g. gemini-2.5-flash-lite) aren't in that
+    # table, so register ours as a Google model to make the lookup succeed.
+    from agentdojo.models import MODEL_NAMES
+    if model not in MODEL_NAMES:
+        MODEL_NAMES[model] = "AI model developed by Google"
+
     # ---- Gemini AI-Studio backend: proactive throttle + backoff for the free tier ---------
     # Proactively space calls >= rpm_interval seconds apart (6s -> ~10 req/min) to stay under
     # the free-tier RPM limit, so we don't hammer-then-429; backoff is the safety net.

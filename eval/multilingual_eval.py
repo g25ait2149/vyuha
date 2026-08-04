@@ -1,5 +1,5 @@
 """
-Aegis - multilingual jailbreak-detection eval.
+Vyuha - multilingual jailbreak-detection eval.
 
 The same four jailbreak intents expressed in five languages (fixed translations, no MT
 model needed) plus benign controls. Measures per-language recall and FPR. With a

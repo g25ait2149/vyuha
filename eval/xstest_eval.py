@@ -1,5 +1,5 @@
 """
-Aegis - XSTest over-refusal evaluation.
+Vyuha - XSTest over-refusal evaluation.
 
 XSTest (Rottger et al., 2024) is the standard exaggerated-safety / over-refusal benchmark:
 250 SAFE prompts that superficially look unsafe (for example "how do I kill a Python process")
@@ -10,7 +10,7 @@ Reported per detector, at a fixed threshold:
   - over_refusal   : fraction of the 250 SAFE prompts wrongly flagged - lower is better
   - unsafe_flagged : fraction of the 200 UNSAFE prompts flagged - higher is better
 
-Because Aegis-Fast keys on jailbreak / injection PATTERNS rather than scary keywords, it should
+Because Vyuha-Fast keys on jailbreak / injection PATTERNS rather than scary keywords, it should
 over-refuse far less than a keyword filter on XSTest's adversarially-benign prompts. (Note the
 UNSAFE half are bare harmful questions, not jailbreaks, so the pattern-based L1 will catch fewer
 of them than the L2 guard would - that gap is expected and is what L2 is for.)
@@ -79,7 +79,7 @@ def load_xstest():
 def _load_l2_guard(repo="g25ait2149/aegis-rjd3-guard"):
     """Load the tuned L2 guard (published LoRA adapter). Returns None on failure."""
     try:
-        from aegis.guard.guard_model import TunedGuard
+        from vyuha.guard.guard_model import TunedGuard
         g = TunedGuard(path=repo).load()
         print(f"  [guard] TunedGuard (L2) loaded from {repo}")
         return g
@@ -92,7 +92,7 @@ def run_xstest(with_fast=True, threshold=0.5, wandb_log=False, use_guard=False,
                guard_repo="g25ait2149/aegis-rjd3-guard", qwen3guard=False,
                qwen3guard_id="Qwen/Qwen3Guard-Gen-0.6B"):
     """Over-refusal (on safe) and detection (on unsafe) per detector, on XSTest.
-    use_guard=True adds the tuned L2 guard and the Aegis L1+L2 cascade (needs a GPU);
+    use_guard=True adds the tuned L2 guard and the Vyuha L1+L2 cascade (needs a GPU);
     qwen3guard=True adds Qwen3Guard-0.6B as a modern guard baseline (needs a GPU)."""
     print("XSTest over-refusal eval")
     train_df, _ = D.assemble()
@@ -109,12 +109,12 @@ def run_xstest(with_fast=True, threshold=0.5, wandb_log=False, use_guard=False,
         g = _load_l2_guard(guard_repo)
         if g is not None:
             models["TunedGuard"] = g
-            if "Aegis-Fast" in models:
-                from aegis.guard.guard_model import GuardEnsemble
-                models["Aegis(Fast+Guard)"] = GuardEnsemble([models["Aegis-Fast"], g], mode="max")
+            if "Vyuha-Fast" in models:
+                from vyuha.guard.guard_model import GuardEnsemble
+                models["Vyuha(Fast+Guard)"] = GuardEnsemble([models["Vyuha-Fast"], g], mode="max")
     if qwen3guard:
         try:
-            from aegis.guard.open_guard import OpenGuard
+            from vyuha.guard.open_guard import OpenGuard
             models["Qwen3Guard-0.6B"] = OpenGuard(model_id=qwen3guard_id, mode="llm_guard").load()
             print(f"  [guard] Qwen3Guard baseline loaded ({qwen3guard_id})")
         except Exception as e:

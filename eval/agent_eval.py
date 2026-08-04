@@ -1,5 +1,5 @@
 """
-Aegis P4 - indirect prompt-injection benchmark for agents (runs on CPU, no LLM needed).
+Vyuha P4 - indirect prompt-injection benchmark for agents (runs on CPU, no LLM needed).
 
 Each scenario is a piece of UNTRUSTED content an agent would read (email, web page,
 calendar invite, document) paired with a dangerous tool the injection wants to trigger.
@@ -13,9 +13,9 @@ We measure three things the defense must get right:
 """
 import numpy as np
 
-from aegis.agent.injection_scanner import InjectionScanner
-from aegis.agent.tool_policy import ToolPolicy
-from aegis.ops.redteam import MUTATORS
+from vyuha.agent.injection_scanner import InjectionScanner
+from vyuha.agent.tool_policy import ToolPolicy
+from vyuha.ops.redteam import MUTATORS
 
 # (name, untrusted_content, dangerous_tool, is_attack)
 SCENARIOS = [
@@ -84,10 +84,10 @@ _BENIGN_CONTENT = [
 
 def run_agent_robustness(detector=None, channels=("identity", "base64", "homoglyph",
                                                   "zero_width", "char_spacing"), verbose=True):
-    """Indirect-injection detection UNDER OBFUSCATION - the agent-side of Aegis's niche.
+    """Indirect-injection detection UNDER OBFUSCATION - the agent-side of Vyuha's niche.
 
     For each channel the injection payloads are obfuscated (Base64 / homoglyph / zero-width /
-    character-spacing) and we compare detection by Aegis (which de-obfuscates at L0 before the
+    character-spacing) and we compare detection by Vyuha (which de-obfuscates at L0 before the
     injection rules) against a regex-only scanner that does not de-obfuscate. Also reports the
     benign pass-rate (benign tool-content correctly NOT flagged). This is CPU-only.
     """
@@ -109,13 +109,13 @@ def run_agent_robustness(detector=None, channels=("identity", "base64", "homogly
         print("-" * 48)
         for r in rows:
             print(f"{r['channel']:<14}{r['detect_aegis']:>14.3f}{r['detect_regex_only']:>20.3f}")
-        print(f"\nbenign_pass_rate (Aegis): {benign_pass:.3f}   "
+        print(f"\nbenign_pass_rate (Vyuha): {benign_pass:.3f}   "
               "(detection higher = better; benign_pass higher = better)")
     return rows, benign_pass
 
 
 def run_agentdojo(defense=None):
-    """Run the real AgentDojo benchmark with Aegis as a defense. Requires:
+    """Run the real AgentDojo benchmark with Vyuha as a defense. Requires:
         pip install agentdojo   + an LLM backend (OpenAI/Anthropic key or a local model).
     Plug aegis.agent.InjectionScanner.sanitize as the content-sanitization defense and
     ToolPolicy as the tool gate. Left as an integration hook (needs API access)."""

@@ -1,5 +1,5 @@
 """
-Aegis corpus assembly & benchmark loaders.
+Vyuha corpus assembly & benchmark loaders.
 
 Unified schema {text, label, source, split}; label 1 = attack/unsafe, 0 = benign.
 Benchmark prompt sets are kept test-only. Authenticates to HuggingFace (HF_TOKEN env

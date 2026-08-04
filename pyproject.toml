@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aegis-guard"
+name = "vyuha-guard"
 version = "0.6.0"
-description = "Aegis - layered (L0-L5) LLM jailbreak & prompt-injection defense: de-obfuscation, fast detector, fine-tuned guard ensemble, agent defense, output moderation, continuous red-team."
+description = "Vyuha - layered (L0-L5) LLM jailbreak & prompt-injection defense: de-obfuscation, fast detector, fine-tuned guard ensemble, agent defense, output moderation, continuous red-team."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -28,11 +28,11 @@ ops   = ["wandb", "langdetect"]
 dev   = ["pytest>=7"]
 
 [project.scripts]
-aegis = "aegis.cli:main"
+vyuha = "vyuha.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/g25ait2149/aegis"
 Repository = "https://github.com/g25ait2149/aegis"
 
 [tool.setuptools.packages.find]
-include = ["aegis*", "eval*", "service*"]
+include = ["vyuha*", "eval*", "service*"]

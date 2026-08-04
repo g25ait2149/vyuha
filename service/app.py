@@ -1,5 +1,5 @@
 """
-Aegis service (P6) - a FastAPI gateway around the L0-L5 stack.
+Vyuha service (P6) - a FastAPI gateway around the L0-L5 stack.
 
 Endpoints
   GET  /health       -> liveness + version
@@ -8,7 +8,7 @@ Endpoints
   POST /guard_turn   -> full envelope: {prompt, response, untrusted?}
 
 The L1 detector is fit once (lazily) on a small built-in seed corpus so the service runs
-with no dataset; in production call Aegis().fit(corpus) and inject it. Run:
+with no dataset; in production call Vyuha().fit(corpus) and inject it. Run:
 
     pip install -e ".[serve]"
     uvicorn service.app:app --host 0.0.0.0 --port 8000
@@ -18,9 +18,9 @@ from typing import Optional
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from aegis import __version__
+from vyuha import __version__
 
-app = FastAPI(title="Aegis", version=__version__,
+app = FastAPI(title="Vyuha", version=__version__,
               description="Layered LLM jailbreak & prompt-injection defense (L0-L5).")
 
 _STATE = {}
@@ -41,11 +41,11 @@ SEED_BENIGN = [
 
 def get_pipe():
     if "pipe" not in _STATE:
-        from aegis.pipeline import Aegis
-        from aegis.prefilter.fast_layer import FastLayer
+        from vyuha.pipeline import Vyuha
+        from vyuha.prefilter.fast_layer import FastLayer
         fl = FastLayer(semantic_backend="tfidf").fit(
             SEED_ATTACKS + SEED_BENIGN, [1] * len(SEED_ATTACKS) + [0] * len(SEED_BENIGN))
-        _STATE["pipe"] = Aegis(detector=fl)
+        _STATE["pipe"] = Vyuha(detector=fl)
     return _STATE["pipe"]
 
 
@@ -80,7 +80,7 @@ def scan(inp: ScanIn):
 
 @app.post("/moderate")
 def moderate(inp: ModerateIn):
-    from aegis.output import OutputModerator
+    from vyuha.output import OutputModerator
     mod = OutputModerator(system_prompt=inp.system_prompt or "", canary=inp.canary)
     r = mod.moderate(inp.response, prompt=inp.prompt)
     return {"decision": r["decision"], "reasons": r["reasons"], "text": r["text"]}
@@ -88,7 +88,7 @@ def moderate(inp: ModerateIn):
 
 @app.post("/guard_turn")
 def guard_turn(inp: TurnIn):
-    from aegis.output import OutputModerator
+    from vyuha.output import OutputModerator
     pipe = get_pipe()
     if pipe.output_moderator is None:
         pipe.attach_output_moderator(OutputModerator(guard=pipe.detector))

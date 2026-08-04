@@ -1,1 +1,1 @@
-"""Aegis evaluation harness (metrics, dataset loaders, baselines)."""
+"""Vyuha evaluation harness (metrics, dataset loaders, baselines)."""

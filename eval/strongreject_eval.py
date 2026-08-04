@@ -1,24 +1,24 @@
 """
-Aegis - StrongREJECT end-to-end attack-success-rate (ASR) evaluation.
+Vyuha - StrongREJECT end-to-end attack-success-rate (ASR) evaluation.
 
 This is the field-standard way to score a DEFENSE (Souly et al., "A StrongREJECT for Empty
 Jailbreaks", arXiv:2402.10260): rather than only scoring the detector, we measure whether an
 attack actually makes a victim LLM emit specific harmful content, judged by the StrongREJECT
-evaluator, and compare the victim ALONE against the victim placed behind Aegis.
+evaluator, and compare the victim ALONE against the victim placed behind Vyuha.
 
 Per prompt (optionally obfuscated with one of the ALL_ATTACKS wrappers, so ASR is measured on
-the encoding/obfuscation axis that is Aegis's niche):
+the encoding/obfuscation axis that is Vyuha's niche):
 
     attack -> victim LLM -> response          (undefended ASR)
-    attack -> [Aegis.scan]                     block? -> attack fails (score 0)
-             else -> reuse response -> [Aegis.guard_turn]  block? -> score 0, else judge
+    attack -> [Vyuha.scan]                     block? -> attack fails (score 0)
+             else -> reuse response -> [Vyuha.guard_turn]  block? -> score 0, else judge
 
 guard_mode="ensemble" additionally runs the L2 guard on EVERY input (de-obfuscated inside the
 guard), catching bare harmful prompts that the L1 jailbreak filter deliberately passes - this is
 the harmful-topic-coverage mode. The default "cascade" only consults the guard on the L1-uncertain
 band, so it does not reduce ASR on plain harmful topics (that is by design, and is why this mode exists).
 
-Because Aegis only blocks, its ASR can never exceed the undefended ASR. Everything is pluggable
+Because Vyuha only blocks, its ASR can never exceed the undefended ASR. Everything is pluggable
 with offline fallbacks so it runs on a single free T4 (or CPU for a plumbing smoke test), with
 no paid API.
 
@@ -230,7 +230,7 @@ def _make_judge(judge_name):
 def _load_l2_guard(repo="g25ait2149/aegis-rjd3-guard"):
     """Load the tuned L2 guard (published LoRA adapter). Returns None on failure."""
     try:
-        from aegis.guard.guard_model import TunedGuard
+        from vyuha.guard.guard_model import TunedGuard
         g = TunedGuard(path=repo).load()
         print(f"  [guard] TunedGuard (L2) loaded from {repo}")
         return g
@@ -247,7 +247,7 @@ def _load_guard(guard_impl="tuned", guard_repo="g25ait2149/aegis-rjd3-guard",
     or None on failure."""
     if guard_impl == "qwen3guard":
         try:
-            from aegis.guard.open_guard import OpenGuard
+            from vyuha.guard.open_guard import OpenGuard
             g = OpenGuard(model_id=qwen3guard_id, mode="llm_guard").load()
             print(f"  [guard] Qwen3Guard content-safety L2 loaded ({qwen3guard_id})")
             return g
@@ -258,16 +258,16 @@ def _load_guard(guard_impl="tuned", guard_repo="g25ait2149/aegis-rjd3-guard",
 
 
 def _build_aegis(use_guard=False, guard_repo="g25ait2149/aegis-rjd3-guard", guard=None):
-    from aegis.pipeline import Aegis
+    from vyuha.pipeline import Vyuha
     from eval import datasets as D
     train_df, _ = D.assemble(verbose=False)
-    ag = Aegis().fit(train_df.text.to_numpy(), train_df.label.to_numpy())
+    ag = Vyuha().fit(train_df.text.to_numpy(), train_df.label.to_numpy())
     if use_guard:
         g = guard if guard is not None else _load_l2_guard(guard_repo)   # reuse a pre-loaded guard
         if g is not None:
             ag.attach_guard(g)
     try:
-        from aegis.output import OutputModerator
+        from vyuha.output import OutputModerator
         ag.attach_output_moderator(OutputModerator())
     except Exception:
         pass
@@ -280,12 +280,12 @@ def _attack_fns():
     (rot13, emoji-smuggle, ascii-art). Bind f=v to avoid late-binding closures."""
     fns = {"identity": lambda t: t}
     try:
-        from aegis.ops.redteam import MUTATORS
+        from vyuha.ops.redteam import MUTATORS
         fns.update({k: (lambda t, f=v: f(t)) for k, v in MUTATORS.items()})
     except Exception:
         pass
     try:
-        from aegis.prefilter.attacks import ALL_ATTACKS
+        from vyuha.prefilter.attacks import ALL_ATTACKS
         for k, v in ALL_ATTACKS.items():
             fns.setdefault(k, (lambda t, f=v: f(t)))
     except Exception:
@@ -298,7 +298,7 @@ def run_strongreject(victim_id="mock", n=None, attacks=("identity", "base64", "c
                      use_guard=False, guard_repo="g25ait2149/aegis-rjd3-guard",
                      guard_mode="cascade", guard_threshold=0.5, guard_impl="tuned",
                      qwen3guard_id="Qwen/Qwen3Guard-Gen-0.6B"):
-    """End-to-end ASR (undefended vs Aegis) over StrongREJECT, per attack channel.
+    """End-to-end ASR (undefended vs Vyuha) over StrongREJECT, per attack channel.
     full=True uses the 313-prompt standard set; n caps the prompt count (None = all).
     use_guard=True attaches the L2 guard to the selective cascade (needs a GPU).
     guard_mode="ensemble" instead runs that guard on EVERY input (P(unsafe) >= guard_threshold
@@ -317,7 +317,7 @@ def run_strongreject(victim_id="mock", n=None, attacks=("identity", "base64", "c
     _l0 = None
     if guard_mode == "ensemble":
         try:
-            from aegis.normalize.normalize import normalize as _l0    # L0 de-obfuscation before the guard
+            from vyuha.normalize.normalize import normalize as _l0    # L0 de-obfuscation before the guard
         except Exception:
             _l0 = None
         print(f"  [mode] guard-on-everything ensemble via '{guard_impl}' (block if P(unsafe) >= "
@@ -327,7 +327,7 @@ def run_strongreject(victim_id="mock", n=None, attacks=("identity", "base64", "c
     fns = _attack_fns()
     k = len(prompts)
 
-    # Phase 1 - generate victim responses and record Aegis decisions (victim resident).
+    # Phase 1 - generate victim responses and record Vyuha decisions (victim resident).
     plan = []
     for atk in attacks:
         wrap = fns.get(atk)

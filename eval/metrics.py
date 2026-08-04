@@ -1,5 +1,5 @@
 """
-Aegis evaluation metrics.
+Vyuha evaluation metrics.
 
 Security-grade metrics for a detector, given true labels (1=attack/unsafe, 0=benign)
 and predicted attack-probabilities in [0,1]:

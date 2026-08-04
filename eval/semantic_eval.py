@@ -1,7 +1,7 @@
 """
-Aegis - semantic-attack evaluation (does L1 catch semantic jailbreaks, or is that L2's job?).
+Vyuha - semantic-attack evaluation (does L1 catch semantic jailbreaks, or is that L2's job?).
 
-Obfuscation attacks change the SURFACE (Base64, character-spacing) - Aegis's L0/L1 handle those.
+Obfuscation attacks change the SURFACE (Base64, character-spacing) - Vyuha's L0/L1 handle those.
 SEMANTIC attacks instead keep the surface fluent and benign-looking while preserving harmful intent:
   - PAIR / TAP  : an attacker LLM iteratively rewrites the prompt until the target complies.
   - PAP         : 40 social-science persuasion strategies, human-readable, ~92% ASR on aligned LLMs.
@@ -97,7 +97,7 @@ def run_semantic_eval(with_fast=True, use_guard=False, qwen3guard=False,
                       qwen3guard_id="Qwen/Qwen3Guard-Gen-0.6B",
                       threshold=0.5, n=None, wandb_log=False):
     """Detection rate on semantic (PAIR) jailbreaks vs over-refusal (FPR) on benign, per detector.
-    L1 detectors (Aegis-Fast, RJD-v2) are expected to score LOW on semantic attacks (no surface tell);
+    L1 detectors (Vyuha-Fast, RJD-v2) are expected to score LOW on semantic attacks (no surface tell);
     an L2 content guard (Qwen3Guard) should score higher - that gap IS the point (L2 carries semantics)."""
     from eval import datasets as D
     from eval.run_baselines import build_models
@@ -112,17 +112,17 @@ def run_semantic_eval(with_fast=True, use_guard=False, qwen3guard=False,
 
     if use_guard:
         try:
-            from aegis.guard.guard_model import TunedGuard, GuardEnsemble
+            from vyuha.guard.guard_model import TunedGuard, GuardEnsemble
             g = TunedGuard(path=guard_repo).load()
             models["TunedGuard"] = g
-            if "Aegis-Fast" in models:
-                models["Aegis(Fast+Guard)"] = GuardEnsemble([models["Aegis-Fast"], g], mode="max")
+            if "Vyuha-Fast" in models:
+                models["Vyuha(Fast+Guard)"] = GuardEnsemble([models["Vyuha-Fast"], g], mode="max")
             print(f"  [guard] TunedGuard (L2) loaded from {guard_repo}")
         except Exception as e:
             print(f"  [guard] TunedGuard failed: {str(e)[:60]}")
     if qwen3guard:
         try:
-            from aegis.guard.open_guard import OpenGuard
+            from vyuha.guard.open_guard import OpenGuard
             models["Qwen3Guard-0.6B"] = OpenGuard(model_id=qwen3guard_id, mode="llm_guard").load()
             print(f"  [guard] Qwen3Guard baseline loaded ({qwen3guard_id})")
         except Exception as e:

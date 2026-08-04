@@ -1,8 +1,8 @@
 """
-Aegis P1/P2 - assemble corpus, train baselines + the Aegis-Fast L1 stack, evaluate on
+Vyuha P1/P2 - assemble corpus, train baselines + the Vyuha-Fast L1 stack, evaluate on
 every test set, print the comparison + robustness tables, and (optionally) log to W&B.
 
-    python -m eval.run_baselines                 # CPU; includes Aegis-Fast
+    python -m eval.run_baselines                 # CPU; includes Vyuha-Fast
     python -m eval.run_baselines --guard         # also load an open guard (transformers/GPU)
     python -m eval.run_baselines --wandb         # log comparison + robustness to Weights & Biases
     python -m eval.run_baselines --no-fast       # baselines only
@@ -12,15 +12,15 @@ import os
 import random
 import numpy as np
 
-from aegis.prefilter.rjd import RJDDetector, KeywordBaseline
-from aegis.prefilter.fast_layer import FastLayer
-from aegis.prefilter.attacks import ALL_ATTACKS
+from vyuha.prefilter.rjd import RJDDetector, KeywordBaseline
+from vyuha.prefilter.fast_layer import FastLayer
+from vyuha.prefilter.attacks import ALL_ATTACKS
 from eval import datasets as D
 from eval import metrics as M
 
 
 def build_models(with_fast=True, fast_sem_gates=(0.85,)):
-    """Baselines + the Aegis-Fast L1 stack. Pass multiple fast_sem_gates (e.g. (0.85,0.90,0.95)) to
+    """Baselines + the Vyuha-Fast L1 stack. Pass multiple fast_sem_gates (e.g. (0.85,0.90,0.95)) to
     sweep the FastLayer's semantic gate - higher gate = the semantic detector fires only on very
     high similarity, trading a little recall for lower over-refusal (FRR)."""
     models = {
@@ -32,10 +32,10 @@ def build_models(with_fast=True, fast_sem_gates=(0.85,)):
     if with_fast:
         gates = list(fast_sem_gates) or [0.85]
         if len(gates) == 1:
-            models["Aegis-Fast"] = FastLayer(sem_gate=gates[0])
+            models["Vyuha-Fast"] = FastLayer(sem_gate=gates[0])
         else:
             for g in gates:
-                models[f"Aegis-Fast@{g:g}"] = FastLayer(sem_gate=g, name=f"Aegis-Fast@{g:g}")
+                models[f"Vyuha-Fast@{g:g}"] = FastLayer(sem_gate=g, name=f"Vyuha-Fast@{g:g}")
     return models
 
 
@@ -84,7 +84,7 @@ def run(use_guard=False, with_fast=True, wandb_log=False,
 
     if use_guard:
         try:
-            from aegis.guard.open_guard import OpenGuard
+            from vyuha.guard.open_guard import OpenGuard
             models["OpenGuard"] = OpenGuard(model_id=guard_model).load()
             print(f"  loaded OpenGuard ({guard_model})")
         except Exception as e:

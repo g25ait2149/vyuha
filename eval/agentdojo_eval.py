@@ -102,7 +102,7 @@ def run_agentdojo_l3(api_key=None, provider="groq", model=None, base_url=None,
     from agentdojo.agent_pipeline.llms.openai_llm import OpenAILLM
     from agentdojo.agent_pipeline.pi_detector import PromptInjectionDetector
     from agentdojo.attacks.attack_registry import ATTACKS, load_attack
-    from agentdojo.benchmark import benchmark_suite_with_injections
+    from agentdojo.benchmark import run_task_with_injection_tasks
     from agentdojo.logging import OutputLogger
     from agentdojo.task_suite.load_suites import get_suite
     from agentdojo.types import text_content_block_from_string
@@ -199,18 +199,29 @@ def run_agentdojo_l3(api_key=None, provider="groq", model=None, base_url=None,
     for defended in (False, True):
         pipe = _pipeline(defended)
         attack = load_attack(attack_name, suite, pipe)
+        util_all, sec_all, skipped = {}, {}, 0
+        # Run task-by-task so one provider-side parse/tool hiccup skips just that trial instead of
+        # crashing the whole run (Groq occasionally can't parse a model's reasoning-channel output).
         with OutputLogger(str(logdir), live=None):
-            res = benchmark_suite_with_injections(
-                pipe, suite, attack, logdir=Path(logdir), force_rerun=False,
-                user_tasks=user_ids, injection_tasks=inj_ids, verbose=False,
-                benchmark_version=version)
-        util = _mean(res["utility_results"])
-        sec = _mean(res["security_results"])
+            for uid in user_ids:
+                utask = suite.get_user_task_by_id(uid)
+                try:
+                    u, s = run_task_with_injection_tasks(
+                        suite, pipe, utask, attack, Path(logdir), False, inj_ids, version)
+                    util_all.update(u)
+                    sec_all.update(s)
+                except Exception as e:
+                    skipped += 1
+                    if verbose:
+                        print(f"    [skip] {uid}: {str(e)[:90]}")
+        util = _mean(util_all)
+        sec = _mean(sec_all)
         label = "Vyuha L3" if defended else "undefended"
         out[label] = {"utility_under_attack": round(util, 3), "injection_asr": round(1.0 - sec, 3),
-                      "security": round(sec, 3), "n": len(res["security_results"])}
+                      "security": round(sec, 3), "n": len(sec_all), "skipped": skipped}
         if verbose:
-            print(f"  {label:<11} utility-under-attack={util:.2f}  injection ASR={1.0 - sec:.2f}  (n={out[label]['n']})")
+            print(f"  {label:<11} utility-under-attack={util:.2f}  injection ASR={1.0 - sec:.2f}  "
+                  f"(n={out[label]['n']}, skipped={skipped})")
 
     if verbose and {"undefended", "Vyuha L3"} <= set(out):
         u, v = out["undefended"], out["Vyuha L3"]

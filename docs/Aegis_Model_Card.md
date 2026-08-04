@@ -70,9 +70,14 @@ Recall is reported at a fixed 1% FPR.
   RJD-v2 **0.008**.
 - **L3 agent:** injection-under-obfuscation detection **1.00** vs 0.00-0.17 for a regex baseline;
   benign-pass 1.00. Behind CaMeL's capability guarantees.
-- **L4 output:** flag **precision = recall = F1 = 1.00** on the labeled leak/harm probe (response-harm
-  scoring should use the content guard, not the L1 detector).
-- **L5 ops + self-hardening:** red-team **mean ASR 0.24 -> 0.14**; two self-hardening cycles
+- **L4 output:** flag **precision = recall = F1 = 1.00** on the labeled leak/harm probe. Response-harm
+  is scored by the **content guard** (Qwen3Guard) on the (prompt, response) pair, not the L1 detector:
+  on a small cue-less harmful-compliance contrast set (illustrative, n=5) the content guard scores
+  **F1 1.00** vs **0.00** for the keyword heuristic.
+- **L5 ops + self-hardening:** red-team **mean ASR 0.24 -> 0.14**. The runnable self-hardening loop
+  (red-team -> harvest -> auto-signature -> re-measure, with an FRR budget), on a detector with an exhibited obfuscation gap, drives seen-attack
+  **ASR 0.62 -> 0.00 in one round at flat FRR 0.000**, while **held-out novel** attacks stay at **0.88**
+  (signatures harden known attacks, not novel ones). Two earlier hand cycles on record
   (character-spacing 0.83 -> 0.00; adaptive 1.00 -> 0.50). **PSI drift monitor trips (PSI 11.8)** on
   an attack-surge window.
 

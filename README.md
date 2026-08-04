@@ -145,8 +145,8 @@ The other two attack axes and the upper layers, evaluated in their own notebooks
 | Semantic attacks (PAIR, n=103) | L1 flags 6.8%, tuned guard 2.9%, content guard 90.3% - semantic attacks are an L2 problem, measured. Estimated ~10x attacker query-cost inflation behind the guard. |
 | Over-refusal (XSTest) | RJD-v2 0.008; content guard 0.048. |
 | L3 agent | Injection-under-obfuscation detection 1.00 vs 0.00-0.17 for a regex-only baseline; benign pass 1.00. Behind CaMeL's capability guarantees (see the paper). |
-| L4 output | Precision = recall = F1 = 1.00 on the labeled leak/harm probe. Response-harm scoring should use the content guard, not the L1 detector. |
-| L5 ops + self-hardening | Red-team mean ASR 0.24 -> 0.14; two self-hardening cycles (character-spacing 0.83 -> 0.00; adaptive 1.00 -> 0.50 as survivors shifted from obfuscation to injection-wrappers). Drift monitor trips (PSI 11.8) on an attack surge. |
+| L4 output | Precision = recall = F1 = 1.00 on the labeled leak/harm probe. Response-harm is scored by the content guard (Qwen3Guard) on the (prompt, response) pair, not the L1 detector: on a small cue-less harmful-compliance set (illustrative, n=5) the content guard scores F1 1.00 vs 0.00 for the keyword heuristic. |
+| L5 ops + self-hardening | Red-team mean ASR 0.24 -> 0.14. Runnable self-hardening loop (red-team -> harvest -> auto-signature -> re-measure, FRR-budgeted), on a detector with an exhibited obfuscation gap: seen-attack ASR 0.62 -> 0.00 in one round at flat FRR 0.000, while held-out novel attacks stay 0.88 (signatures harden known attacks, not novel). Earlier hand cycles: character-spacing 0.83 -> 0.00. Drift monitor trips (PSI 11.8) on an attack surge. |
 
 The honest bottom line: obfuscation is closed cheaply at L1 (RJD-v2), while harmful-topic and
 semantic attacks - which by design defeat a surface detector - are carried by a composed content

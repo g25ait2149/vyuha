@@ -47,10 +47,21 @@ def list_gemini_models(api_key=None):
     return names
 
 
-def run_agentdojo_l3(api_key=None, model="gemini-flash-latest", suite_name="banking",
-                     attack_name="important_instructions", version="v1.2.2",
+_PROVIDERS = {
+    # provider -> (base_url, api-key env var, default tool-calling model)
+    "groq":       ("https://api.groq.com/openai/v1", "GROQ_API_KEY", "llama-3.3-70b-versatile"),
+    "cerebras":   ("https://api.cerebras.ai/v1", "CEREBRAS_API_KEY", "llama-3.3-70b"),
+    "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "meta-llama/llama-3.3-70b-instruct"),
+    # Gemini works for LISTING but 3.x models 400 on multi-turn tool calls (thought_signature),
+    # which AgentDojo can't round-trip - kept for reference, not recommended for this benchmark.
+    "gemini":     ("https://generativelanguage.googleapis.com/v1beta/openai/", "GEMINI_API_KEY", "gemini-flash-latest"),
+}
+
+
+def run_agentdojo_l3(api_key=None, provider="groq", model=None, base_url=None,
+                     suite_name="banking", attack_name="important_instructions", version="v1.2.2",
                      n_user_tasks=2, n_injection_tasks=1, raise_on_injection=False,
-                     rpm_interval=5.0, max_retries=4, logdir="agentdojo_runs", verbose=True):
+                     rpm_interval=2.0, max_retries=4, logdir="agentdojo_runs", verbose=True):
     """Baseline vs Vyuha-L3 on an AgentDojo suite subset. Returns a dict of per-arm
     {utility_under_attack, injection_asr, security, n}. Heavy imports are lazy so importing this
     module never requires agentdojo/google to be installed."""
@@ -58,8 +69,15 @@ def run_agentdojo_l3(api_key=None, model="gemini-flash-latest", suite_name="bank
     import time
     from pathlib import Path
 
-    api_key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    assert api_key, "Set GEMINI_API_KEY (a free Google AI Studio key)."
+    _base, _env, _model = _PROVIDERS.get(provider, (None, "OPENAI_API_KEY", None))
+    base_url = base_url or _base
+    model = model or _model
+    api_key = api_key or os.environ.get(_env) or os.environ.get("OPENAI_API_KEY")
+    assert api_key, f"Set an API key for provider '{provider}' (env {_env})."
+    assert base_url and model, f"Unknown provider '{provider}'; pass base_url= and model= explicitly."
+    if verbose and provider == "gemini":
+        print("  [warn] Gemini 3.x requires thought-signatures AgentDojo can't round-trip; "
+              "tool-calling tasks will 400. Prefer provider='groq'.")
 
     import openai
     import agentdojo.attacks  # noqa: F401  (registers the attacks)
@@ -84,7 +102,7 @@ def run_agentdojo_l3(api_key=None, model="gemini-flash-latest", suite_name="bank
     # table, so register ours as a Google model to make the lookup succeed.
     from agentdojo.models import MODEL_NAMES
     if model not in MODEL_NAMES:
-        MODEL_NAMES[model] = "AI model developed by Google"
+        MODEL_NAMES[model] = "AI model developed by Google" if provider == "gemini" else "AI assistant"
 
     # ---- Gemini via its OpenAI-COMPATIBLE endpoint --------------------------------------
     # Not the native google-genai path: Gemini 3.x requires "thought_signature" round-tripping on
@@ -115,8 +133,7 @@ def run_agentdojo_l3(api_key=None, model="gemini-flash-latest", suite_name="bank
                 f"Hit the free-tier request cap for {model} (daily/RPM). Try a fresh model bucket "
                 "or wait for the midnight-Pacific reset; the logdir caches completed tasks so it resumes.")
 
-    client = openai.OpenAI(api_key=api_key,
-                           base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
+    client = openai.OpenAI(api_key=api_key, base_url=base_url)
     llm = _RateLimitedLLM(client, model)
 
     # ---- Vyuha L3 as an AgentDojo prompt-injection detector -------------------------------
@@ -155,7 +172,7 @@ def run_agentdojo_l3(api_key=None, model="gemini-flash-latest", suite_name="bank
     user_ids = list(suite.user_tasks.keys())[:n_user_tasks]
     inj_ids = list(suite.injection_tasks.keys())[:n_injection_tasks]
     if verbose:
-        print(f"AgentDojo L3 eval | suite={suite_name} v{version} | model={model} | attack={attack_name}")
+        print(f"AgentDojo L3 eval | suite={suite_name} v{version} | {provider}:{model} | attack={attack_name}")
         print(f"  user tasks:      {user_ids}")
         print(f"  injection tasks: {inj_ids}\n")
 

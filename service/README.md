@@ -1,6 +1,6 @@
-# Aegis service
+# Vyuha service
 
-FastAPI gateway around the Aegis L0-L5 stack.
+FastAPI gateway around the Vyuha L0-L5 stack.
 
 ## Run
 ```bash
@@ -9,8 +9,8 @@ uvicorn service.app:app --reload     # http://127.0.0.1:8000/docs
 ```
 or with Docker (from the repo root):
 ```bash
-docker build -f service/Dockerfile -t aegis .
-docker run -p 8000:8000 aegis
+docker build -f service/Dockerfile -t vyuha .
+docker run -p 8000:8000 vyuha
 ```
 
 ## Endpoints

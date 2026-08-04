@@ -1,6 +1,6 @@
 # Standards and threat-model mapping
 
-Aegis is built against published references rather than an ad-hoc feature list. This
+Vyuha is built against published references rather than an ad-hoc feature list. This
 document is the explicit mapping, so a reviewer can check coverage and, just as important,
 see what is deliberately out of scope.
 
@@ -8,7 +8,7 @@ see what is deliberately out of scope.
 
 The 2025 edition (v2.0, OWASP GenAI Security Project) is the primary threat reference.
 
-| ID | Risk | How Aegis addresses it | Layer |
+| ID | Risk | How Vyuha addresses it | Layer |
 |----|------|------------------------|-------|
 | LLM01 | Prompt Injection | De-obfuscation and spotlighting, a fast statistical detector, a fine-tuned guard, and dual-LLM handling of untrusted content | L0, L1, L2, L3 |
 | LLM02 | Sensitive Information Disclosure | Output scanning that redacts PII and blocks leaked credentials before a reply is returned | L4 |
@@ -23,7 +23,7 @@ The 2025 edition (v2.0, OWASP GenAI Security Project) is the primary threat refe
 
 ## NIST AI Risk Management Framework
 
-The AI RMF (NIST, January 2023) organizes work into four functions. Aegis maps to them as
+The AI RMF (NIST, January 2023) organizes work into four functions. Vyuha maps to them as
 follows, and the Generative AI Profile (NIST AI 600-1, July 2024) informs which GenAI risks
 are prioritized (confabulation, information leakage, and misuse in particular).
 
@@ -46,7 +46,7 @@ honest about which techniques are actually covered.
 ## ISO/IEC 42001 and the EU AI Act
 
 ISO/IEC 42001:2023 is a management-system standard for AI, not a technical control set.
-Aegis does not certify anything; it provides technical controls (input filtering, output
+Vyuha does not certify anything; it provides technical controls (input filtering, output
 moderation, monitoring, and continuous testing) that support an organization's operational
 controls and risk-treatment obligations under such a program, and the transparency and
 robustness expectations of the EU AI Act for higher-risk systems.

@@ -91,24 +91,24 @@ def run_agent_robustness(detector=None, channels=("identity", "base64", "homogly
     injection rules) against a regex-only scanner that does not de-obfuscate. Also reports the
     benign pass-rate (benign tool-content correctly NOT flagged). This is CPU-only.
     """
-    aegis = InjectionScanner(detector=detector, normalize_content=True)     # L0 de-obfuscate first
+    vyuha = InjectionScanner(detector=detector, normalize_content=True)     # L0 de-obfuscate first
     regex_only = InjectionScanner(detector=None, normalize_content=False)   # naive baseline
     rows = []
     for ch in channels:
         fn = MUTATORS.get(ch, lambda t: t)
         obf = [fn(p) for p in _INJ_PAYLOADS]
-        det_a = float(np.mean([aegis.scan(c)["is_injection"] for c in obf]))
+        det_a = float(np.mean([vyuha.scan(c)["is_injection"] for c in obf]))
         det_r = float(np.mean([regex_only.scan(c)["is_injection"] for c in obf]))
         rows.append({"channel": ch, "n": len(obf),
-                     "detect_aegis": round(det_a, 3), "detect_regex_only": round(det_r, 3)})
-    benign_pass = float(np.mean([not aegis.scan(c)["is_injection"] for c in _BENIGN_CONTENT]))
+                     "detect_vyuha": round(det_a, 3), "detect_regex_only": round(det_r, 3)})
+    benign_pass = float(np.mean([not vyuha.scan(c)["is_injection"] for c in _BENIGN_CONTENT]))
 
     if verbose:
         print("\n============ AGENT INJECTION UNDER OBFUSCATION ============")
-        print(f"{'channel':<14}{'detect_aegis':>14}{'detect_regex_only':>20}")
+        print(f"{'channel':<14}{'detect_vyuha':>14}{'detect_regex_only':>20}")
         print("-" * 48)
         for r in rows:
-            print(f"{r['channel']:<14}{r['detect_aegis']:>14.3f}{r['detect_regex_only']:>20.3f}")
+            print(f"{r['channel']:<14}{r['detect_vyuha']:>14.3f}{r['detect_regex_only']:>20.3f}")
         print(f"\nbenign_pass_rate (Vyuha): {benign_pass:.3f}   "
               "(detection higher = better; benign_pass higher = better)")
     return rows, benign_pass
@@ -117,7 +117,7 @@ def run_agent_robustness(detector=None, channels=("identity", "base64", "homogly
 def run_agentdojo(defense=None):
     """Run the real AgentDojo benchmark with Vyuha as a defense. Requires:
         pip install agentdojo   + an LLM backend (OpenAI/Anthropic key or a local model).
-    Plug aegis.agent.InjectionScanner.sanitize as the content-sanitization defense and
+    Plug vyuha.agent.InjectionScanner.sanitize as the content-sanitization defense and
     ToolPolicy as the tool gate. Left as an integration hook (needs API access)."""
     raise NotImplementedError("Install `agentdojo` + an LLM backend, then wrap tool outputs "
                               "with InjectionScanner.sanitize and gate tools with ToolPolicy.")

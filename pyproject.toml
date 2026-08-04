@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "vyuha-guard"
 version = "0.6.0"
-description = "Vyuha - layered (L0-L5) LLM jailbreak & prompt-injection defense: de-obfuscation, fast detector, fine-tuned guard ensemble, agent defense, output moderation, continuous red-team."
+description = "Layered defense-in-depth against LLM jailbreaks and prompt injection (L0-L5): de-obfuscation, fast detector, fine-tuned guard, agent defense, output moderation, and continuous red-teaming. Runs on a single free GPU; mapped to OWASP LLM Top 10 and NIST AI RMF."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}

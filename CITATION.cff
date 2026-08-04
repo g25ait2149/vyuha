@@ -1,11 +1,11 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "Aegis: a layered defense for large language models"
+title: "Vyuha: a layered defense for large language models"
 abstract: >-
-  Aegis is a defense-in-depth system for LLM jailbreak and prompt-injection defense,
-  combining de-obfuscation, a fast detector, a fine-tuned guard, agent and tool-injection
-  defense, output moderation, and continuous red-teaming, designed to run on a single free
-  GPU and aligned to the OWASP LLM Top 10, NIST AI RMF, and MITRE ATLAS.
+  Vyuha (formerly Aegis) is a defense-in-depth system for LLM jailbreak and prompt-injection
+  defense, combining de-obfuscation, a fast detector, a fine-tuned guard, agent and
+  tool-injection defense, output moderation, and continuous red-teaming, designed to run on a
+  single free GPU and aligned to the OWASP LLM Top 10, NIST AI RMF, and MITRE ATLAS.
 type: software
 authors:
   - given-names: "Sai Pavan Vamshi Krishna"

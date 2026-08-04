@@ -1,4 +1,4 @@
-# Contributing to Aegis
+# Contributing to Vyuha
 
 Contributions are welcome, whether that is a new evasion that beats a layer, a fix, docs,
 or an additional evaluation.
@@ -7,7 +7,7 @@ or an additional evaluation.
 
 ```bash
 git clone https://github.com/g25ait2149/aegis.git
-cd aegis
+cd vyuha
 python -m venv .venv && source .venv/bin/activate   # optional
 pip install -e ".[dev]"
 pytest -q

@@ -1,7 +1,7 @@
-# Aegis - Industry-Grade LLM Jailbreak & Prompt-Injection Defense
+# Vyuha - Industry-Grade LLM Jailbreak & Prompt-Injection Defense
 ## Technical Design & Build Roadmap (v1.0)
 
-*Successor to RJD-v2. Working name: **Aegis** (the layered guardrail system); **RJD-3** is its core detection model. Rename freely.*
+*Successor to RJD-v2. Working name: **Vyuha** (the layered guardrail system); **RJD-3** is its core detection model. Rename freely.*
 
 **Goals (all three):** a publishable **research result**, a polished **open-source model + library**, and a deployable **production service** - built on **free Kaggle/Colab T4** compute, covering the **full layered system**.
 
@@ -98,7 +98,7 @@ A fresh, de-duplicated, contamination-controlled corpus is the single biggest le
 
 - **Benchmarks:** HarmBench, JailbreakBench, AdvBench (jailbreaks); **AgentDojo, InjecAgent, OS-Harm, LLMail-Inject** (agent/indirect); our own held-out unseen-attack set.
 - **Metrics:** Attack Success Rate (↓), recall @ low FPR, robust recall per attack, **over-refusal (FRR)** on hard benign, ROC-AUC, ECE (calibration), latency, agent task-utility-under-attack.
-- **Adaptive evaluation (mandatory):** run optimizer/LLM attacks *against Aegis itself* (the "attacker moves second" test). Report robustness to adaptive attacks, not just static ones.
+- **Adaptive evaluation (mandatory):** run optimizer/LLM attacks *against Vyuha itself* (the "attacker moves second" test). Report robustness to adaptive attacks, not just static ones.
 - **Red-team tooling:** `garak`, Microsoft `PyRIT`; track results over time.
 - **Baselines:** Llama Guard 4, Qwen3Guard, ShieldGemma 2, WildGuard, plus our RJD-v2 - same prompts, same protocol.
 
@@ -107,20 +107,20 @@ A fresh, de-duplicated, contamination-controlled corpus is the single biggest le
 | Track | Deliverable | Notes |
 |---|---|---|
 | **Research** | Paper: layered design + adaptive-attack eval + ablations + results tables/figures | Targets a workshop/arXiv; honest negative results included |
-| **Open-source** | `aegis` Python library (`aegis.scan(text)`, `aegis.guard_agent(...)`), the RJD-3 guard on HuggingFace, model card, docs | Apache/MIT; reproducible notebook |
+| **Open-source** | `vyuha` Python library (`vyuha.scan(text)`, `vyuha.guard_agent(...)`), the RJD-3 guard on HuggingFace, model card, docs | Apache/MIT; reproducible notebook |
 | **Production** | FastAPI service: layered pipeline, caching, per-tenant policy, OpenTelemetry monitoring, OWASP/NIST control mapping, latency SLA | vLLM for the guard model; Docker; load tests |
 
 ## 8. Phased roadmap (each phase ships something runnable on T4)
 
 | Phase | Focus | Key output |
 |---|---|---|
-| **P0 - Setup** | Repo scaffold, env, data licenses, eval harness skeleton | `aegis/` repo + CI + benchmark loaders |
+| **P0 - Setup** | Repo scaffold, env, data licenses, eval harness skeleton | `vyuha/` repo + CI + benchmark loaders |
 | **P1 - Data + Eval** | Assemble & clean the corpus; wire up HarmBench/JailbreakBench/AgentDojo loaders + metrics | Versioned dataset + one-command eval harness + baseline numbers (RJD-2, open guards) |
 | **P2 - L0 + L1** | Upgrade normalization (emoji/bidi/OCR/spotlight) + embedding/signature pre-filters | Fast layer beating RJD-v2 on obfuscation + novel-similar |
 | **P3 - L2 guard** | LoRA-fine-tune small guard; ensemble + calibrate; (optional SecAlign) | RJD-3 guard model on HF + ensemble results vs baselines |
 | **P4 - L3 agent** | Dual-LLM/CaMeL + tool-use policy; evaluate on AgentDojo/InjecAgent | Agent-defense module + AgentDojo scores |
 | **P5 - L4 + L5** | Output moderation + leak detection; red-team loop + monitoring + retrain | Full pipeline + adaptive-attack report |
-| **P6 - Package** | Library release, paper write-up, FastAPI service + Docker, docs | Paper draft + `pip install aegis` + deployable API |
+| **P6 - Package** | Library release, paper write-up, FastAPI service + Docker, docs | Paper draft + `pip install vyuha` + deployable API |
 
 *Suggested first move: **P0 + P1** - stand up the evaluation harness and baselines. Everything else is judged against it, so it comes first.*
 
@@ -135,8 +135,8 @@ A fresh, de-duplicated, contamination-controlled corpus is the single biggest le
 ## 10. Tech stack & repo layout
 
 ```
-aegis/
-├── aegis/
+vyuha/
+├── vyuha/
 │   ├── normalize/      L0 - de-obfuscation, OCR, spotlighting
 │   ├── prefilter/      L1 - RJD-2 classifier, embeddings, signature DB
 │   ├── guard/          L2 - fine-tuned guard + ensemble + calibration

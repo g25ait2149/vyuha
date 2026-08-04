@@ -47,7 +47,7 @@ def list_gemini_models(api_key=None):
     return names
 
 
-def run_agentdojo_l3(api_key=None, model="gemini-2.5-flash", suite_name="banking",
+def run_agentdojo_l3(api_key=None, model="gemini-flash-latest", suite_name="banking",
                      attack_name="important_instructions", version="v1.2.2",
                      n_user_tasks=2, n_injection_tasks=1, raise_on_injection=False,
                      rpm_interval=5.0, max_retries=4, logdir="agentdojo_runs", verbose=True):
@@ -61,12 +61,12 @@ def run_agentdojo_l3(api_key=None, model="gemini-2.5-flash", suite_name="banking
     api_key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     assert api_key, "Set GEMINI_API_KEY (a free Google AI Studio key)."
 
-    from google import genai
+    import openai
     import agentdojo.attacks  # noqa: F401  (registers the attacks)
     from agentdojo.agent_pipeline.agent_pipeline import AgentPipeline, load_system_message
     from agentdojo.agent_pipeline.basic_elements import InitQuery, SystemMessage
     from agentdojo.agent_pipeline.tool_execution import ToolsExecutionLoop, ToolsExecutor, tool_result_to_str
-    from agentdojo.agent_pipeline.llms.google_llm import GoogleLLM
+    from agentdojo.agent_pipeline.llms.openai_llm import OpenAILLM
     from agentdojo.agent_pipeline.pi_detector import PromptInjectionDetector
     from agentdojo.attacks.attack_registry import ATTACKS, load_attack
     from agentdojo.benchmark import benchmark_suite_with_injections
@@ -86,10 +86,12 @@ def run_agentdojo_l3(api_key=None, model="gemini-2.5-flash", suite_name="banking
     if model not in MODEL_NAMES:
         MODEL_NAMES[model] = "AI model developed by Google"
 
-    # ---- Gemini AI-Studio backend: proactive throttle + backoff for the free tier ---------
-    # Proactively space calls >= rpm_interval seconds apart (6s -> ~10 req/min) to stay under
-    # the free-tier RPM limit, so we don't hammer-then-429; backoff is the safety net.
-    class _RateLimitedGoogleLLM(GoogleLLM):
+    # ---- Gemini via its OpenAI-COMPATIBLE endpoint --------------------------------------
+    # Not the native google-genai path: Gemini 3.x requires "thought_signature" round-tripping on
+    # multi-turn tool calls, which AgentDojo's GoogleLLM wrapper predates. The OpenAI-compatible
+    # endpoint uses the OpenAI tool-calling AgentDojo is tested with and avoids that entirely.
+    # Proactive throttle (space calls >= rpm_interval apart) + a few backoff retries for the free tier.
+    class _RateLimitedLLM(OpenAILLM):
         def query(self, *args, **kwargs):
             gap = time.time() - getattr(self, "_last_call", 0.0)
             if gap < rpm_interval:
@@ -101,8 +103,7 @@ def run_agentdojo_l3(api_key=None, model="gemini-2.5-flash", suite_name="banking
                     return result
                 except Exception as e:
                     s = str(e).lower()
-                    # NOTE: every retry also counts against the daily quota, so we retry only a few
-                    # times (for genuine per-minute blips) then fail fast rather than burn the cap.
+                    # every retry also counts against the daily quota, so retry only a few times.
                     if any(t in s for t in ("429", "resource_exhausted", "rate limit", "quota", "exhausted")):
                         wait = min(30, 10 * (attempt + 1))
                         if verbose:
@@ -111,13 +112,12 @@ def run_agentdojo_l3(api_key=None, model="gemini-2.5-flash", suite_name="banking
                         continue
                     raise
             raise RuntimeError(
-                "Hit the free-tier request cap. Most likely the DAILY cap for this model "
-                f"({model}) is exhausted - switch to a fresh bucket (e.g. gemini-2.5-flash-lite, "
-                "~1000/day) or wait for the midnight-Pacific reset. The logdir caches completed "
-                "tasks, so re-running resumes rather than repeating.")
+                f"Hit the free-tier request cap for {model} (daily/RPM). Try a fresh model bucket "
+                "or wait for the midnight-Pacific reset; the logdir caches completed tasks so it resumes.")
 
-    client = genai.Client(api_key=api_key)          # AI Studio free tier - NOT vertexai
-    llm = _RateLimitedGoogleLLM(model, client)
+    client = openai.OpenAI(api_key=api_key,
+                           base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
+    llm = _RateLimitedLLM(client, model)
 
     # ---- Vyuha L3 as an AgentDojo prompt-injection detector -------------------------------
     class _VyuhaL3Detector(PromptInjectionDetector):

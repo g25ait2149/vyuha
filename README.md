@@ -144,7 +144,7 @@ The other two attack axes and the upper layers, evaluated in their own notebooks
 | L2 tuned guard (QLoRA 1.5B) | Jailbreak-only: cross-benchmark ROC-AUC 0.72-0.92 on unseen jailbreaks, but inert on harmful-topic (XSTest 0.00) and semantic (PAIR 0.03). Kept as a heavier jailbreak guard, not a content guard. |
 | Semantic attacks (PAIR, n=103) | L1 flags 6.8%, tuned guard 2.9%, content guard 90.3% - semantic attacks are an L2 problem, measured. Estimated ~10x attacker query-cost inflation behind the guard. |
 | Over-refusal (XSTest) | RJD-v2 0.008; content guard 0.048. |
-| L3 agent | Injection-under-obfuscation detection 1.00 vs 0.00-0.17 for a regex-only baseline; benign pass 1.00. Behind CaMeL's capability guarantees (see the paper). |
+| L3 agent | Injection-under-obfuscation detection 1.00 vs 0.00-0.17 for a regex-only baseline; benign pass 1.00. On AgentDojo (banking, important_instructions) L3 drives injection ASR to 0.00 on both a weak agent (gpt-oss-20b, undefended 1.00) and a strong one (gpt-oss-120b, undefended 0.06 at 0.69 utility, n=16; L3 keeps 0.50) - small L3-arm n (free-tier quota). Behind CaMeL's capability guarantees (see the paper). |
 | L4 output | Precision = recall = F1 = 1.00 on the labeled leak/harm probe. Response-harm is scored by the content guard (Qwen3Guard) on the (prompt, response) pair, not the L1 detector: on a small cue-less harmful-compliance set (illustrative, n=5) the content guard scores F1 1.00 vs 0.00 for the keyword heuristic. |
 | L5 ops + self-hardening | Red-team mean ASR 0.24 -> 0.14. Runnable self-hardening loop (red-team -> harvest -> auto-signature -> re-measure, FRR-budgeted), on a detector with an exhibited obfuscation gap: seen-attack ASR 0.62 -> 0.00 in one round at flat FRR 0.000, while held-out novel attacks stay 0.88 (signatures harden known attacks, not novel). Earlier hand cycles: character-spacing 0.83 -> 0.00. Drift monitor trips (PSI 11.8) on an attack surge. |
 
@@ -178,7 +178,7 @@ MITRE ATLAS, and ISO/IEC 42001, is in [`docs/STANDARDS.md`](docs/STANDARDS.md).
 Eleven Kaggle notebooks under [`notebooks/`](notebooks/) rebuild the project and its evaluations:
 P1 (harness) through P6 (packaging), plus P7-P11 - StrongREJECT end-to-end ASR, XSTest
 over-refusal, agent injection-under-obfuscation, semantic-attack (PAIR) detection, and the L3
-AgentDojo benchmark (undefended vs L3, on a free Gemini AI-Studio key). Each one
+AgentDojo benchmark (undefended vs L3, on a free Groq-hosted open agent). Each one
 clones this repo, so the workflow is `git push` here, then Run All on Kaggle. Turn Internet on;
 the guard notebooks want a GPU, the rest are CPU-only.
 

@@ -3,6 +3,8 @@ __pycache__/
 .ipynb_checkpoints/
 # stray filesystem tombstones (created by the FUSE mount when a file is open+deleted)
 .fuse_hidden*
+# temporary document-render preview images (build check only)
+_vtd_preview/
 # training outputs / model artifacts (don't commit large binaries)
 aegis_guard/
 hf_upload/

@@ -69,7 +69,10 @@ Recall is reported at a fixed 1% FPR.
   estimated **~10x** attacker query-cost inflation behind the content guard. Over-refusal (XSTest):
   RJD-v2 **0.008**.
 - **L3 agent:** injection-under-obfuscation detection **1.00** vs 0.00-0.17 for a regex baseline;
-  benign-pass 1.00. Behind CaMeL's capability guarantees.
+  benign-pass 1.00. On **AgentDojo** (banking, important_instructions) L3 drives injection **ASR to
+  0.00** on both a weak agent (gpt-oss-20b, undefended 1.00) and a strong one (gpt-oss-120b, undefended
+  0.06 at 0.69 utility, n=16; L3 keeps 0.50 utility) - small L3-arm n (free-tier quota). Behind CaMeL's
+  capability guarantees.
 - **L4 output:** flag **precision = recall = F1 = 1.00** on the labeled leak/harm probe. Response-harm
   is scored by the **content guard** (Qwen3Guard) on the (prompt, response) pair, not the L1 detector:
   on a small cue-less harmful-compliance contrast set (illustrative, n=5) the content guard scores

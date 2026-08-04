@@ -175,9 +175,10 @@ MITRE ATLAS, and ISO/IEC 42001, is in [`docs/STANDARDS.md`](docs/STANDARDS.md).
 
 ## Reproduce
 
-Ten Kaggle notebooks under [`notebooks/`](notebooks/) rebuild the project and its evaluations:
-P1 (harness) through P6 (packaging), plus P7-P10 - StrongREJECT end-to-end ASR, XSTest
-over-refusal, agent injection-under-obfuscation, and semantic-attack (PAIR) detection. Each one
+Eleven Kaggle notebooks under [`notebooks/`](notebooks/) rebuild the project and its evaluations:
+P1 (harness) through P6 (packaging), plus P7-P11 - StrongREJECT end-to-end ASR, XSTest
+over-refusal, agent injection-under-obfuscation, semantic-attack (PAIR) detection, and the L3
+AgentDojo benchmark (undefended vs L3, on a free Gemini AI-Studio key). Each one
 clones this repo, so the workflow is `git push` here, then Run All on Kaggle. Turn Internet on;
 the guard notebooks want a GPU, the rest are CPU-only.
 

@@ -10,6 +10,12 @@ Decision policy:
   - redact : benign but contains PII (returns a masked copy)
   - allow  : clean
 Returns the (possibly redacted) text plus every finding so callers can log and explain.
+
+The `guard` used for response-harm scoring should be an L2 CONTENT guard (e.g. Qwen3Guard via
+OpenGuard) - it judges whether the answer is actually harmful. Do NOT pass the L1 jailbreak
+detector here: L1 scores how jailbreak-like a string is, which is the wrong signal for a fluent,
+harmful compliance. When the guard exposes proba_response, the moderator feeds it the
+(prompt, response) pair so the guard moderates the assistant turn.
 """
 from .pii import PIIScanner
 from .secrets import SecretScanner
@@ -20,6 +26,8 @@ from .response_guard import ResponseModerator
 class OutputModerator:
     def __init__(self, guard=None, system_prompt="", canary=None,
                  redact_pii=True, block_secrets=True, response_block_at=0.7):
+        # guard: an L2 CONTENT guard (Qwen3Guard via OpenGuard) for response-harm scoring, NOT
+        # the L1 jailbreak detector. None -> the keyword-cue heuristic fallback.
         self.pii = PIIScanner()
         self.secrets = SecretScanner()
         self.leak = SystemPromptLeakDetector(system_prompt=system_prompt, canary=canary)

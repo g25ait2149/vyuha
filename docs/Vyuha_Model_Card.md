@@ -6,7 +6,7 @@ whole L0-L5 stack and its fine-tuned L2 guard adapter.
 
 ## Model details
 
-- **Name / version:** Vyuha (`vyuha-guard`) v0.6.0 - P6 (full L0-L5 stack).
+- **Name / version:** Vyuha (`vyuha-guard`) v0.6.0 - full L0-L5 stack; agent/ops layers extended in P12 (MCP tool-poisoning scan, instruction-hierarchy tool policy, session-escalation monitor).
 - **Owner:** U E Sai Pavan Vamshi Krishna (G25AIT2149), IIT Jodhpur - CSL6010. Successor to RJD-v2.
 - **License:** MIT.
 - **Type:** Defense-in-depth guardrail pipeline. Components: rule/statistical detectors (L0, L1, L3, L4, L5) and a **QLoRA-fine-tuned** safety classifier (L2) on a Qwen2.5-1.5B base (4-bit + LoRA adapter).
@@ -26,9 +26,9 @@ whole L0-L5 stack and its fine-tuned L2 guard adapter.
 | L0 normalize | de-obfuscate (Unicode/Base64/homoglyph/zero-width), spotlight untrusted, detect language | canonical text + provenance |
 | L1 fast layer | RJD-v2 + semantic + signature, recall-preserving max | P(attack) |
 | L2 guard | QLoRA classifier, ensemble, invoked only on the uncertain band | P(unsafe) |
-| L3 agent | injection scan/sanitize, tool policy, Dual-LLM | safe context + tool gating |
+| L3 agent | injection scan/sanitize, MCP tool-poisoning scan, instruction-hierarchy tool policy, Dual-LLM | safe context + tool gating |
 | L4 output | PII / secrets / canary-leak / response-safety | allow / redact / block |
-| L5 ops | red-team ASR-per-mutator, PSI drift monitor | robustness + alerts |
+| L5 ops | red-team ASR-per-mutator, PSI drift monitor, session-escalation (Crescendo) monitor | robustness + alerts |
 
 ## Factors
 
@@ -72,7 +72,11 @@ Recall is reported at a fixed 1% FPR.
   benign-pass 1.00. On **AgentDojo** (banking, important_instructions) L3 drives injection **ASR to
   0.00** on both a weak agent (gpt-oss-20b, undefended 1.00) and a strong one (gpt-oss-120b, undefended
   0.06 at 0.69 utility, n=16; L3 keeps 0.50 utility) - small L3-arm n (free-tier quota). Behind CaMeL's
-  capability guarantees.
+  capability guarantees. On **MCP tool-poisoning** (hidden agent-directed instructions in tool
+  metadata; n=5 poisoned incl. an obfuscated case, 6 benign with normal usage notes) the
+  registration-time scanner detects **1.00** at **0** false positives; the **instruction-hierarchy**
+  tool policy additionally hard-blocks a dangerous action that appears on a tainted turn and was not in
+  the user's stated intent (injected-action), rather than merely asking for confirmation.
 - **L4 output:** flag **precision = recall = F1 = 1.00** on the labeled leak/harm probe. Response-harm
   is scored by the **content guard** (Qwen3Guard) on the (prompt, response) pair, not the L1 detector:
   on a small cue-less harmful-compliance contrast set (illustrative, n=5) the content guard scores
@@ -82,7 +86,9 @@ Recall is reported at a fixed 1% FPR.
   **ASR 0.62 -> 0.00 in one round at flat FRR 0.000**, while **held-out novel** attacks stay at **0.88**
   (signatures harden known attacks, not novel ones). Two earlier hand cycles on record
   (character-spacing 0.83 -> 0.00; adaptive 1.00 -> 0.50). **PSI drift monitor trips (PSI 11.8)** on
-  an attack-surge window.
+  an attack-surge window. A **session-escalation monitor** flags multi-turn **Crescendo** attacks
+  (rising-trend / sustained / refuse-then-rephrase-and-retry) that stay *below the per-message block
+  threshold on every single turn* - the trajectory a single-message moderator cannot see.
 
 Point estimates depend on the run and on gated-dataset access; the P1-P6 notebooks reproduce
 them end to end.

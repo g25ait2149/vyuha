@@ -12,6 +12,19 @@ gracefully so the rest of the harness runs without it.
 """
 import numpy as np
 
+# Recommended NON-OVERLAPPING guard members for the L2 ensemble (each brings a different strength).
+# Model ids verified on the Hugging Face Hub (Aug 2026); pin an exact revision before a real run.
+GUARD_PRESETS = {
+    # fast prompt-injection classifier (CPU/GPU) - the injection axis
+    "deberta-injection": {"model_id": "protectai/deberta-v3-base-prompt-injection-v2", "mode": "classifier"},
+    # IBM Granite Guardian - reportedly strong on prompt injection; small MoE fits a free T4
+    "granite-guardian": {"model_id": "ibm-granite/granite-guardian-3.2-3b-a800m", "mode": "llm_guard"},
+    "granite-guardian-4": {"model_id": "ibm-granite/granite-guardian-4.1-8b", "mode": "llm_guard"},
+    # LLM safety guards - the harmful-content / policy axis
+    "llama-guard": {"model_id": "meta-llama/Llama-Guard-3-8B", "mode": "llm_guard"},
+    "qwen3guard": {"model_id": "Qwen/Qwen3Guard-Gen-0.6B", "mode": "llm_guard"},
+}
+
 
 class OpenGuard:
     def __init__(self, model_id="protectai/deberta-v3-base-prompt-injection-v2",
@@ -20,7 +33,15 @@ class OpenGuard:
         self.mode = mode
         self.device = device
         self.unsafe_prefixes = unsafe_label_prefixes
+        self.name = model_id.split("/")[-1]
         self._ready = False
+
+    @classmethod
+    def preset(cls, name, **overrides):
+        """Build an OpenGuard from a named GUARD_PRESETS entry (e.g. 'granite-guardian')."""
+        cfg = dict(GUARD_PRESETS[name]); cfg.update(overrides)
+        g = cls(**cfg); g.name = name
+        return g
 
     def load(self):
         import torch

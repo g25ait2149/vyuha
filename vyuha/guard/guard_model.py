@@ -55,14 +55,90 @@ class TunedGuard:
 
 
 class GuardEnsemble:
-    """Combine fitted/loaded detectors (each exposing .proba) by 'max' or 'mean'."""
-    def __init__(self, members, mode="max", weights=None):
-        self.members = members
+    """Combine fitted/loaded detectors (each exposing .proba) by 'max' or 'mean'.
+
+    The 2026 best practice is to ensemble guards with *non-overlapping* strengths (e.g. a fast
+    injection classifier + an LLM safety guard + a reasoning/multilingual guard) so the union
+    catches what any one misses. `mode='max'` is the recall-preserving ANY-flag union.
+
+    Beyond scoring, this class can *measure the value of adding a guard*: `fit_thresholds` pins
+    each member to a low benign FPR, and `report` shows each member's standalone recall/FPR, the
+    ensemble's, and the **marginal recall** each member uniquely contributes (attacks the union
+    catches that every other member misses) - the evidence that a member is genuinely
+    non-overlapping rather than redundant.
+
+        ens = GuardEnsemble({"rjd2": fast, "granite": granite_guard})   # named members
+        ens.report(X, y, target_fpr=0.01)   # -> per-member + ensemble recall/FPR + marginal recall
+    """
+    def __init__(self, members, mode="max", weights=None, names=None):
+        # members may be a list of guards OR a dict {name: guard}
+        if isinstance(members, dict):
+            self.names = list(members.keys())
+            self.members = list(members.values())
+        else:
+            self.members = list(members)
+            self.names = list(names) if names is not None else \
+                [getattr(m, "name", None) or type(m).__name__ + (f"#{i}" if names is None else "")
+                 for i, m in enumerate(self.members)]
         self.mode = mode
         self.weights = weights
+        self.thresholds = {n: 0.5 for n in self.names}   # per-member decision thresholds
+
+    def proba_matrix(self, X):
+        """Per-member P(attack): {name: np.array}."""
+        return {n: np.asarray(m.proba(X), dtype=float) for n, m in zip(self.names, self.members)}
 
     def proba(self, X):
         P = np.vstack([np.asarray(m.proba(X), dtype=float) for m in self.members])
         if self.mode == "mean":
             return np.average(P, axis=0, weights=self.weights)
         return P.max(axis=0)        # ANY-flag: high recall for high-stakes use
+
+    def fit_thresholds(self, benign_X, target_fpr=0.01):
+        """Set each member's threshold at the (1 - target_fpr) quantile of its benign scores, so
+        every member operates at ~target_fpr false-positive rate and the union FPR stays bounded."""
+        for n, s in self.proba_matrix(benign_X).items():
+            self.thresholds[n] = float(np.quantile(s, 1 - target_fpr)) if len(s) else 0.5
+        return self
+
+    def predict(self, X):
+        """Union OR at per-member thresholds (recall-preserving). A member fires when its score is
+        strictly above its fitted threshold, which keeps each member at-or-under its FPR budget
+        (and avoids an all-ties threshold flagging everything). Returns an int flag array."""
+        M = self.proba_matrix(X)
+        return np.vstack([(M[n] > self.thresholds[n]).astype(int) for n in self.names]).max(axis=0)
+
+    def report(self, X, y, target_fpr=None):
+        """Complementarity report: standalone recall/FPR per member, the ensemble's, and the
+        marginal recall each member uniquely adds. If target_fpr is given, thresholds are (re)fit
+        on the benign subset of X first."""
+        y = np.asarray([int(v) for v in y])
+        if target_fpr is not None:
+            benign = [x for x, l in zip(X, y) if not l]
+            self.fit_thresholds(benign, target_fpr)
+        M = self.proba_matrix(X)
+        pos, neg = y == 1, y == 0
+
+        def rc_fpr(flag):
+            rec = float(flag[pos].mean()) if pos.any() else 0.0
+            fpr = float(flag[neg].mean()) if neg.any() else 0.0
+            return round(rec, 3), round(fpr, 3)
+
+        flags, members = {}, {}
+        for n in self.names:
+            f = (M[n] > self.thresholds[n]).astype(int)
+            flags[n] = f
+            rec, fpr = rc_fpr(f)
+            members[n] = {"recall": rec, "fpr": fpr, "threshold": round(self.thresholds[n], 3)}
+        ens = np.vstack([flags[n] for n in self.names]).max(axis=0)
+        erec, efpr = rc_fpr(ens)
+        marginal = {}
+        for n in self.names:
+            others = [flags[o] for o in self.names if o != n]
+            others_flag = np.vstack(others).max(axis=0) if others else np.zeros_like(ens)
+            gained = int(((ens == 1) & (others_flag == 0) & pos).sum())   # caught only because of n
+            marginal[n] = {"unique_attacks_caught": gained,
+                           "recall_added": round(gained / max(int(pos.sum()), 1), 3)}
+        return {"ensemble": {"recall": erec, "fpr": efpr, "mode": "union@thresholds"},
+                "members": members, "marginal": marginal,
+                "n_pos": int(pos.sum()), "n_neg": int(neg.sum())}

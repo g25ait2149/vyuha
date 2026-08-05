@@ -159,6 +159,18 @@ def test_l5_session_monitor_crescendo():
     assert st2["escalating"] is True and "refusal_retry" in st2["reasons"]
 
 
+def test_l2_guard_ensemble_complementarity():
+    from eval.ensemble_eval import ensemble_complementarity_eval
+    rep = ensemble_complementarity_eval(verbose=False)          # offline: two disjoint stub guards
+    # the union catches every attack; neither member alone does
+    assert rep["ensemble"]["recall"] == 1.0 and rep["ensemble"]["fpr"] == 0.0
+    assert rep["members"]["injection-guard"]["recall"] < 1.0
+    assert rep["members"]["content-guard"]["recall"] < 1.0
+    # each member is genuinely non-overlapping: it uniquely catches attacks the other misses
+    assert rep["marginal"]["injection-guard"]["unique_attacks_caught"] >= 1
+    assert rep["marginal"]["content-guard"]["unique_attacks_caught"] >= 1
+
+
 def test_service_endpoints():
     try:
         from fastapi.testclient import TestClient

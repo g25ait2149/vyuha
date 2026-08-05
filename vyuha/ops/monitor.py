@@ -50,3 +50,57 @@ class Monitor:
         if reset:
             self.window = []
         return out
+
+
+class SessionMonitor:
+    """Per-conversation escalation detector for multi-turn / Crescendo jailbreaks.
+
+    Crescendo-style attacks stay *below the per-message block threshold on every single turn* but climb
+    toward harmful content over the conversation - the signal a single-message moderator, by
+    construction, cannot see ("the unit of defense is the session, not the prompt"). Feed it each user
+    turn's detector score (and whether the assistant refused); it flags the session on a rising trend,
+    sustained elevation, or a refusal-then-rephrase-and-retry pattern.
+
+        sm = SessionMonitor()
+        for score, refused in turns:
+            st = sm.observe(score, refused)
+        st["escalating"]   # True if the conversation's trajectory is climbing toward harm
+    """
+
+    def __init__(self, per_msg_block=0.8, session_block=0.55, rise=0.25, window=6):
+        self.per_msg_block = per_msg_block   # a single turn at/above this is the per-message layer's job
+        self.session_block = session_block   # lower bar the CONVERSATION must not sustain or climb to
+        self.rise = rise                     # min early->late increase to count as escalation
+        self.window = window
+        self.scores, self.refused = [], []
+
+    def observe(self, score, refused=False):
+        self.scores.append(float(score))
+        self.refused.append(bool(refused))
+        return self.status()
+
+    def status(self):
+        s = self.scores[-self.window:]
+        rf = self.refused[-self.window:]
+        n = len(s)
+        if n == 0:
+            return {"escalating": False, "reasons": [], "n": 0, "peak": 0.0, "trend": 0.0}
+        flags, trend = [], 0.0
+        # rising trend: late half notably higher than early half, and now in the suspicious zone
+        if n >= 4:
+            h = n // 2
+            early, late = sum(s[:h]) / h, sum(s[h:]) / (n - h)
+            trend = late - early
+            if trend >= self.rise and late >= self.session_block:
+                flags.append("rising_trend")
+        # sustained elevation: the last few turns all park in the suspicious zone
+        tail = s[-min(3, n):]
+        if len(tail) >= 2 and all(x >= self.session_block for x in tail):
+            flags.append("sustained_elevation")
+        # refusal then rephrase-and-retry: a refusal earlier in the window, then a later turn climbs
+        if any(rf[:-1]):
+            first_ref = next(i for i, r in enumerate(rf) if r)
+            if s[-1] - s[first_ref] >= self.rise and s[-1] >= self.session_block:
+                flags.append("refusal_retry")
+        return {"escalating": bool(flags), "reasons": flags, "n": n,
+                "peak": round(max(s), 3), "trend": round(trend, 3)}

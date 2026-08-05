@@ -200,7 +200,9 @@ def chart_obfuscation():
 def chart_coverage():
     axes = ["Harmful-topic\n(XSTest unsafe)", "Semantic\n(PAIR jailbreaks)"]
     l1 = [0.01, 0.068]; tuned = [0.00, 0.029]; qwen = [0.79, 0.903]
-    fig, ax = _plt.subplots(figsize=(6.6, 3.0))
+    fig, (ax, ax2) = _plt.subplots(
+        1, 2, figsize=(7.6, 3.0), gridspec_kw={"width_ratios": [2.5, 1.0]})
+    # ---- left: detection rate on meaning-based attacks (the two axes L2 owns) ----
     x = _np.arange(len(axes)); w = 0.26
     b_l1 = ax.bar(x - w, l1, w, label="L1 detector (RJD-v2)", color=C_STEEL)
     _labels(ax, ax.bar(x, tuned, w, label="our tuned QLoRA guard", color=C_AMBER))
@@ -211,9 +213,23 @@ def chart_coverage():
                     fontsize=5.8, xytext=(0, 1), textcoords="offset points", color="#33404f")
     ax.set_xticks(x); ax.set_xticklabels(axes, fontsize=8.2)
     ax.set_ylim(0, 1.0); ax.set_ylabel("detection rate (higher=better)")
-    ax.legend(fontsize=7.3, loc="upper left", framealpha=0.92)
+    ax.legend(fontsize=7.0, loc="upper left", framealpha=0.92)
     ax.set_title("Only the content guard catches meaning-based attacks", fontsize=8.5, color=C_NAVY)
-    _nospines(ax); fig.tight_layout()
+    _nospines(ax)
+    # ---- right: the tuned QLoRA guard on ITS OWN axis (its trained task) ----
+    # NB different metric: ROC-AUC (ranking), not the detection-rate at left. The 0.00/0.03 bars at
+    # left are inert-by-design; this panel shows the axis the guard was actually built for so the
+    # figure does not read as "the guard fails". Range 0.72-0.92 is the recorded cross-benchmark span.
+    lo, hi = 0.72, 0.92; mid = (lo + hi) / 2
+    ax2.bar([0], [mid], 0.55, color=C_AMBER,
+            yerr=[[mid - lo], [hi - mid]], capsize=4, ecolor="#7a5a10")
+    ax2.annotate(f"{lo:.2f}–{hi:.2f}", (0, hi), ha="center", va="bottom",
+                 fontsize=6.6, xytext=(0, 3), textcoords="offset points", color="#33404f")
+    ax2.set_xticks([0]); ax2.set_xticklabels(["tuned QLoRA guard"], fontsize=7.4)
+    ax2.set_ylim(0, 1.0); ax2.set_ylabel("ROC-AUC (OOD jailbreaks)", fontsize=7.6)
+    ax2.set_title("…but it is a jailbreak specialist\n(its own axis — different metric)",
+                  fontsize=7.6, color=C_NAVY)
+    _nospines(ax2); fig.tight_layout()
     return _fig_img(fig)
 
 
@@ -256,11 +272,31 @@ H.append('<p>The hard part is that attackers <i>adapt</i>: any single filter, on
          '<b>defense-in-depth</b>: many cheap, independent checks stacked so an attacker must beat all of them at once, plus a robot that keeps attacking your own '
          'system. <b>Vyuha</b> is exactly that, for LLMs, under one hard rule: it must train and run on <b>free compute</b> (a single Kaggle T4), so every number '
          'here is reproducible without a lab budget.</p>')
-H.append('<p>No single piece of Vyuha is novel — strong tools already exist for each job. The contribution is the <b>composition</b>, the <b>honesty</b> about '
-         'which layer does what, and <b>reproducibility on free compute</b>. The division of labour is measured, not asserted.</p>')
+H.append('<p>No single <i>component algorithm</i> is new — strong tools already exist for each job. The contributions are the <b>measured composition</b>, the '
+         '<b>adaptive-robustness ablation</b> (which layer earns its place, and why), and <b>reproducibility on free compute</b>. The division of labour is measured, not asserted.</p>')
 H.append('<div class="callout"><b>One-line takeaway.</b> Obfuscation is closed cheaply at L0/L1 (RJD-v2 recalls 1.00 on Base64/ROT13/character-spacing and a '
          '<i>held-out</i> variant, ~8&nbsp;ms on CPU); harmful-topic and semantic attacks — which by design defeat a surface detector — are carried by the L2 content '
          'guard (79% of unsafe XSTest, 90% of real PAIR jailbreaks); and the L5 loop keeps hardening the system against new evasions.</div>')
+
+H.append('<h3 style="page-break-before: always">1.1 · What is ours vs borrowed — contributions at a glance</h3>')
+H.append('<p>Because &ldquo;which parts are novel?&rdquo; is the first question a reader asks, here it is explicitly. '
+         'Every underlying <i>algorithm</i> is standard and cited (left column); the right column is what this project '
+         '<b>proposes and measures</b>. No single component is a new algorithm — the contribution is the measured composition, '
+         'the honest division of labour, and reproducibility on free compute.</p>')
+H.append(table(
+    ["Layer", "Borrowed (standard, cited)", "Proposed / measured by us"],
+    [["L0 normalize", "Unicode NFKC, Base64/ROT13 decode, homoglyph maps, zero-width/bidi strip",
+      "<b>Adaptive multi-view de-spacing</b> (dynamic gap detection + multi-view max) — closed character-spacing ASR <b>0.83&rarr;0.00</b> and generalises to a <i>held-out</i> wider-spacing variant"],
+     ["L1 RJD-v2", "TF-IDF, calibrated linear/GBM ensemble, data augmentation as a technique",
+      "The RJD-v2 <b>recipe</b> and its measured obfuscation robustness — recall <b>1.00</b> incl. the held-out variant at FRR 0.044, matching a GPU guard on CPU (our C1 evidence)"],
+     ["L2 guard", "Qwen3Guard content guard; QLoRA fine-tuning",
+      "<b>Selective invocation</b> (guard runs only on the cascade&rsquo;s uncertain band) and the <b>measured division of labour</b> — content guard owns semantics (90.3% PAIR), tuned guard owns OOD jailbreak generalisation (ROC-AUC 0.72&ndash;0.92)"],
+     ["L3 agent", "Dual-LLM pattern (Willison); CommandSans sanitisation; CaMeL as the target",
+      "A free-compute <b>black-box realisation</b> — injection-under-obfuscation detection <b>1.00</b> vs 0.00&ndash;0.17 for a regex baseline; measured on AgentDojo"],
+     ["L4 output", "PII/secret regex, canary tokens, Shannon-entropy secret test",
+      "Response-harm scored by the <b>content guard on the (prompt, response) pair</b> — not the surface L1 detector"],
+     ["L5 ops", "PSI drift index; garak/PyRIT red-team idea",
+      "The free-compute <b>self-hardening loop</b> (red-team &rarr; harvest &rarr; auto-signature &rarr; re-measure under an FRR budget), with a held-out novelty probe each round"]]))
 
 # 2 threat model
 H.append('<h2>2 · The problem and the threat model</h2>')
@@ -446,14 +482,14 @@ H.append(table(
 # 8 comparison + standards
 H.append('<h3>7.3 · Comparison charts</h3>')
 H.append(chart_coverage())
-H.append('<div class="chartcap">Harmful-topic and semantic attacks are an L2 job — the content guard (Qwen3Guard) catches 79% / 90%, while the surface L1 detector and our jailbreak-only tuned guard catch almost none.</div>')
+H.append('<div class="chartcap">Harmful-topic and semantic attacks are an L2 job — the content guard (Qwen3Guard) catches 79% / 90%, while the surface L1 detector and our jailbreak-only tuned guard catch almost none <i>on these two axes</i>. The right panel shows the tuned guard on the axis it was built for: it generalises to jailbreaks it never trained on at ROC-AUC 0.72–0.92 (a different metric from the detection rate at left). The near-zero bars are by design, not a failure — each layer is measured on the axis it owns.</div>')
 H.append(chart_agentdojo())
 H.append('<div class="chartcap">L3 on AgentDojo — the injection lands every time on a weak agent (1.00) and 6% of the time on a strong one; behind L3 it lands 0% in both, and the strong agent still gets useful work done.</div>')
 H.append('<h2>8 · How Vyuha compares, and how it meets standards</h2>')
 H.append('<h3>8.1 · Versus existing solutions</h3>')
 H.append('<ul>'
          '<li><b>vs protectai DeBERTa (neural guard):</b> RJD-v2 <b>matches</b> its obfuscation robustness at ~8&times; lower latency, on CPU, with lower over-refusal. We do not claim to beat it on raw accuracy — the edge is cost and reproducibility.</li>'
-         '<li><b>vs content guards (Qwen3Guard, ShieldGemma, WildGuard, Llama Guard):</b> we <b>compose</b> one rather than out-build it, and say plainly they are stronger on semantics.</li>'
+         '<li><b>vs content guards (Qwen3Guard, ShieldGemma, WildGuard, Llama Guard):</b> we <b>compose</b> one rather than out-build it. They are stronger on semantics, so the stack&rsquo;s semantic coverage <i>is</i> the content guard&rsquo;s (Qwen3Guard, 90.3% PAIR) — the stack is not weaker on semantics; it delegates that axis rather than adding capability beyond the composed guard.</li>'
          '<li><b>vs AGrail (ACL 2025):</b> AGrail generates and optimises agent checks; our L5 loop is a lighter, signature-based cousin on free compute.</li>'
          '<li><b>vs JBShield (USENIX Sec 2025):</b> JBShield reads hidden states (white-box); Vyuha is deliberately black-box — weaker but far more portable.</li>'
          '<li><b>vs CaMeL (DeepMind):</b> CaMeL gives formal capability guarantees (~67% AgentDojo mitigation). Our L3 is an honest black-box approximation; we cite CaMeL rather than claim to match it.</li></ul>')

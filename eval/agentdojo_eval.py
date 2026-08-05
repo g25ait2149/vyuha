@@ -231,3 +231,48 @@ def run_agentdojo_l3(api_key=None, provider="groq", model=None, base_url=None,
               "For a fair CaMeL comparison, cite its published ~67% AgentDojo mitigation - same-backend "
               "reproduction needs a more capable agent.)")
     return out
+
+
+def run_agentdojo_l3_suites(api_key=None, provider="groq", model=None,
+                            suites=("banking", "slack", "travel", "workspace"),
+                            attack_name="important_instructions", version="v1.2.2",
+                            n_user_tasks=6, n_injection_tasks=3, rpm_interval=2.0,
+                            verbose=True, **kw):
+    """Aggregate the L3 AgentDojo eval across MULTIPLE suites for a sturdier, pooled n.
+
+    Runs `run_agentdojo_l3` per suite and pools the per-suite counts (weighted by n) into overall
+    undefended-vs-L3 utility-under-attack and injection ASR. Because security_i = passed_i / n_i,
+    the n-weighted mean is exactly the pooled fraction (total injections that failed / total).
+    Use this (not a single suite) for a headline benchmark number. Needs a paid/uncapped provider
+    tier for the larger n - the free Groq daily cap will throttle a full 4-suite run."""
+    agg = {"undefended": {"passed": 0.0, "util": 0.0, "n": 0, "skipped": 0},
+           "Vyuha L3": {"passed": 0.0, "util": 0.0, "n": 0, "skipped": 0}}
+    per_suite = {}
+    for s in suites:
+        if verbose:
+            print(f"\n===== suite: {s} =====")
+        r = run_agentdojo_l3(api_key=api_key, provider=provider, model=model, suite_name=s,
+                             attack_name=attack_name, version=version, n_user_tasks=n_user_tasks,
+                             n_injection_tasks=n_injection_tasks, rpm_interval=rpm_interval,
+                             verbose=verbose, **kw)
+        per_suite[s] = r
+        for label in agg:
+            if label in r:
+                d, n = r[label], r[label]["n"]
+                agg[label]["passed"] += d["security"] * n          # = passed injections in this suite
+                agg[label]["util"] += d["utility_under_attack"] * n
+                agg[label]["n"] += n
+                agg[label]["skipped"] += d.get("skipped", 0)
+    out = {}
+    for label, d in agg.items():
+        n = max(d["n"], 1)
+        sec, util = d["passed"] / n, d["util"] / n
+        out[label] = {"utility_under_attack": round(util, 3), "injection_asr": round(1.0 - sec, 3),
+                      "security": round(sec, 3), "n": d["n"], "skipped": d["skipped"]}
+    out["per_suite"] = per_suite
+    if verbose and {"undefended", "Vyuha L3"} <= set(out):
+        u, v = out["undefended"], out["Vyuha L3"]
+        print(f"\n== POOLED across {len(suites)} suites ==")
+        print(f"  undefended: injection ASR={u['injection_asr']:.2f}  utility={u['utility_under_attack']:.2f}  (n={u['n']})")
+        print(f"  Vyuha L3:   injection ASR={v['injection_asr']:.2f}  utility={v['utility_under_attack']:.2f}  (n={v['n']})")
+    return out

@@ -3,12 +3,12 @@
 # No Kaggle dataset needed. Settings -> Internet: ON.  Refresh = git push; re-run.
 # ============================================================================
 import sys, os, glob, subprocess
-REPO_URL = "https://github.com/YOUR_USERNAME/aegis.git"     # <-- set this once
+REPO_URL = "https://github.com/g25ait2149/vyuha.git"     # <-- set this once
 DEST = "/kaggle/working/vyuha_src"
 
 # Private repo? add a GITHUB_TOKEN Kaggle Secret and use:
 # from kaggle_secrets import UserSecretsClient
-# REPO_URL = f"https://{UserSecretsClient().get_secret('GITHUB_TOKEN')}@github.com/YOUR_USERNAME/aegis.git"
+# REPO_URL = f"https://{UserSecretsClient().get_secret('GITHUB_TOKEN')}@github.com/g25ait2149/vyuha.git"
 
 if os.path.isdir(os.path.join(DEST, ".git")):
     subprocess.run(["git", "-C", DEST, "pull", "--ff-only"], check=False)   # already cloned -> update

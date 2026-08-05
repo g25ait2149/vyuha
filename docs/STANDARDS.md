@@ -29,7 +29,7 @@ are prioritized (confabulation, information leakage, and misuse in particular).
 
 - Govern: MIT license, this standards mapping, the security policy, and the documented
   ethics stance set the ground rules.
-- Map: the threat model in `docs/Aegis_Design_and_Roadmap` enumerates the attack classes.
+- Map: the threat model in `docs/Vyuha_Design_and_Roadmap` enumerates the attack classes.
 - Measure: the evaluation harness reports security-grade metrics (recall at a fixed low
   false-positive rate, ROC-AUC, over-refusal, attack success rate), and the L5 red-team
   quantifies robustness per evasion.

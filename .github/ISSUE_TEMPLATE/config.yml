@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Security report
-    url: https://github.com/g25ait2149/aegis/security/advisories/new
+    url: https://github.com/g25ait2149/vyuha/security/advisories/new
     about: Please report vulnerabilities privately, not as a public issue.

@@ -1,4 +1,4 @@
-# Aegis service image.  Build from the repo root:  docker build -f service/Dockerfile -t aegis .
+# Vyuha service image.  Build from the repo root:  docker build -f service/Dockerfile -t vyuha .
 FROM python:3.11-slim
 WORKDIR /app
 COPY . /app

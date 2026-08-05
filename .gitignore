@@ -6,8 +6,10 @@ __pycache__/
 # temporary document-render preview images (build check only)
 _vtd_preview/
 # training outputs / model artifacts (don't commit large binaries)
+vyuha_guard/
 aegis_guard/
 hf_upload/
+_vyuha_src/
 _aegis_src/
 *.joblib
 *.bin
@@ -54,4 +56,5 @@ RELEASE_AND_IP_PLAN.md
 presentations/
 GITHUB.md
 # private research/planning docs (local only)
+VYUHA_RESEARCH_ROADMAP.md
 AEGIS_RESEARCH_ROADMAP.md

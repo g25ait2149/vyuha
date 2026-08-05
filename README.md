@@ -10,7 +10,7 @@ earlier jailbreak detector of mine (RJD-v2), and I've kept working on it since. 
 goal from day one was that the whole thing has to train and run on a single free GPU (a
 Kaggle T4), so the results are actually reproducible without a lab budget.
 
-> **Naming:** Vyuha was formerly called *Aegis* - renamed to avoid a collision with NVIDIA's Aegis content-safety guard. The GitHub repo and Hugging Face model still use the old `aegis` slugs (GitHub redirects them); they will be renamed in a coordinated step.
+> **Naming:** Vyuha was formerly called *Aegis* - renamed to avoid a collision with NVIDIA's Aegis content-safety guard. "RJD-v2" remains the name of the fast Layer-1 detector.
 
 [![CI](https://github.com/g25ait2149/vyuha/actions/workflows/ci.yml/badge.svg)](https://github.com/g25ait2149/vyuha/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)

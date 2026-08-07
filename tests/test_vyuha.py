@@ -186,6 +186,18 @@ def test_l5_adaptive_attack_robustness():
     assert c["RJD-v2 (L0 + aug)"]["benign_fpr"] <= 0.05
 
 
+def test_p15_nist_rmf_benchmark_recall_math():
+    from eval.nist_rmf_eval import _demo, NIST_RMF_CATEGORIES
+    rep = _demo(verbose=False)
+    assert len(NIST_RMF_CATEGORIES) == 8                       # the 8 NIST-RMF safety categories
+    # stub guard is blind to exactly one category -> that category's recall is 0, the rest 1.0
+    assert rep["per_category"]["health_misinformation"]["recall"] == 0.0
+    caught = [c for c in rep["per_category"] if rep["per_category"][c]["recall"] == 1.0]
+    assert len(caught) == 7
+    # overall recall = 14 caught / 16 unsafe = 0.875; benign FPR stays 0
+    assert rep["overall_recall"] == 0.875 and rep["benign_fpr"] == 0.0
+
+
 def test_service_endpoints():
     try:
         from fastapi.testclient import TestClient

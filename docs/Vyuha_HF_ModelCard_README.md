@@ -1,3 +1,19 @@
+---
+license: mit
+language:
+- en
+tags:
+- prompt-injection
+- jailbreak-detection
+- guardrails
+- llm-security
+- qlora
+- defense-in-depth
+library_name: peft
+pipeline_tag: text-classification
+base_model: Qwen/Qwen2.5-1.5B
+---
+
 # Model Card - Vyuha (Layered LLM Jailbreak & Prompt-Injection Defense)
 
 Following the Mitchell et al. model-card convention and Hugging Face model-card sections.

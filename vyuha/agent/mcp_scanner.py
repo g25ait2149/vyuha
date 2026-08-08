@@ -36,8 +36,8 @@ MCP_RULES = {
         r"<\s*/?\s*(important|system|secret|admin|instructions?|inst|hidden)\s*>|"
         r"\bnote to (the )?(ai|assistant|agent|llm|model|system)\b", re.I),
     "secrecy": re.compile(
-        r"\b(do not|don'?t|never|without)\b.{0,24}\b(tell|mention|reveal|inform|disclose|show|notify|alert|let)\b"
-        r".{0,24}\b(the )?(user|human|operator|anyone)\b", re.I),
+        r"\b(do not|don'?t|never|without)\b.{0,24}\b(tell|mention|reveal|inform|disclos|show|notify|alert|let)\w*"
+        r".{0,24}\b((the )?(user|human|operator|anyone)|it|this)\b", re.I),   # verbs allow inflections (mention/mentioning); incl. self-secrecy "disclose this / mentioning it"
     "conditional": re.compile(
         r"\b(when|whenever|if|before|after|each time|prior to)\b.{0,60}"
         r"\b(you|the (agent|assistant|model|ai)|this tool)\b.{0,60}"
@@ -67,7 +67,7 @@ class MCPToolScanner:
         # In tool metadata a lone "you must/should provide X" is a legitimate usage note, not
         # poisoning - our precise `conditional` rule catches the dangerous "you must SEND/READ ..."
         # form. So a directive with no corroborating signal is discounted (avoids false positives).
-        if set(base_rules) and set(base_rules) <= {"directive"}:
+        if set(base_rules) and set(base_rules) <= {"directive", "secret"}:
             base_score, base_rules = 0.0, []
         norm = normalize(text, full=True) if self.normalize else text
         mcp_hits = [k for k, rx in MCP_RULES.items() if rx.search(norm)]

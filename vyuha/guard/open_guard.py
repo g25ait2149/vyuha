@@ -80,7 +80,7 @@ class OpenGuard:
                                                     add_generation_prompt=True, tokenize=False)
             except Exception:
                 text = t
-            enc = self.tok(text, return_tensors="pt").to(self.model.device)
+            enc = self.tok(text, return_tensors="pt", truncation=True, max_length=1024).to(self.model.device)
             with torch.no_grad():
                 gen = self.model.generate(**enc, max_new_tokens=16, do_sample=False,
                                           pad_token_id=self.tok.eos_token_id)
@@ -111,7 +111,7 @@ class OpenGuard:
                 text = self.tok.apply_chat_template(msgs, add_generation_prompt=True, tokenize=False)
             except Exception:
                 text = f"User: {p}\nAssistant: {r}"
-            enc = self.tok(text, return_tensors="pt").to(self.model.device)
+            enc = self.tok(text, return_tensors="pt", truncation=True, max_length=1024).to(self.model.device)
             with torch.no_grad():
                 gen = self.model.generate(**enc, max_new_tokens=16, do_sample=False,
                                           pad_token_id=self.tok.eos_token_id)

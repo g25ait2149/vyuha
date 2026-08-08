@@ -58,6 +58,12 @@ Recall is reported at a fixed 1% FPR.
   **held-out wider-spacing** variant it never trained on (leetspeak 0.97, homoglyph/zero-width/
   full-width ≈0.70). Character-spacing was the prior open gap (red-team ASR 0.83); a multi-view-max +
   adaptive-gap de-spacing fix closed it to **0.00** and generalizes to the held-out variant.
+- **Adaptive robustness (C4; 150 in-the-wild seeds, 500 benign):** against an adaptive attacker
+  searching 101 single/paired evasions per seed, L0 normalization alone drops **static** ASR to 0.02
+  but **adaptive** ASR stays **1.00 [0.97, 1.00]** (the attacker-moves-second premium); adversarial
+  augmentation closes it - RJD-v2 holds adaptive ASR to **0.03 [0.01, 0.08]** at **1%** benign FPR.
+  Augmentation alone leaves **0.25 [0.19, 0.33]** (non-overlapping with 0.03), so L0 and augmentation
+  are complementary - both earn their place.
 - **L1 ensemble (Vyuha-Fast) - NOT the default:** adding a semantic + signature signal raises
   over-refusal to **FRR 0.175** for negligible gain (its templates false-fire on benign text), so
   RJD-v2 ships as L1 and the ensemble is optional.

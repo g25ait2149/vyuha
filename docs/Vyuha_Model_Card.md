@@ -79,8 +79,9 @@ Recall is reported at a fixed 1% FPR.
   0.00** on both a weak agent (gpt-oss-20b, undefended 1.00) and a strong one (gpt-oss-120b, undefended
   0.06 at 0.69 utility, n=16; L3 keeps 0.50 utility) - small L3-arm n (free-tier quota). Behind CaMeL's
   capability guarantees. On **MCP tool-poisoning** (hidden agent-directed instructions in tool
-  metadata; n=5 poisoned incl. an obfuscated case, 6 benign with normal usage notes) the
-  registration-time scanner detects **1.00** at **0** false positives; the **instruction-hierarchy**
+  metadata; n=25 poisoned incl. obfuscated / self-secrecy / poisoned-parameter cases, 27 benign
+  incl. tricky dangerous-capability tools) the registration-time scanner detects **1.00 [95% CI
+  0.87-1.00]** at **0** false positives (benign pass 1.00 [0.88-1.00]); the **instruction-hierarchy**
   tool policy additionally hard-blocks a dangerous action that appears on a tainted turn and was not in
   the user's stated intent (injected-action), rather than merely asking for confirmation.
 - **L4 output:** flag **precision = recall = F1 = 1.00** on the labeled leak/harm probe. Response-harm

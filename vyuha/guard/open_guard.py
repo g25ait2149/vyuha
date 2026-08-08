@@ -43,6 +43,25 @@ class OpenGuard:
         g = cls(**cfg); g.name = name
         return g
 
+    def unload(self):
+        """Free the model from (GPU) memory so an ensemble can score one guard at a time without
+        co-loading two models on a small GPU. Safe to call even if not loaded."""
+        import gc
+        for attr in ("model", "pipe", "tok"):
+            try:
+                delattr(self, attr)
+            except Exception:
+                pass
+        self._ready = False
+        gc.collect()
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
+        return self
+
     def load(self):
         import torch
         from transformers import (AutoTokenizer, AutoModelForSequenceClassification,

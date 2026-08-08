@@ -97,6 +97,16 @@ def nist_rmf_benchmark(guard, texts, labels, categories=None, threshold=0.5, ver
     return rep
 
 
+def weighted_recall(rep, categories):
+    """n-weighted recall over a subset of the report's categories - lets you report the honest split
+    behind an aggregate (e.g. the BeaverTails complete-harmful-request axes vs the RealToxicityPrompts
+    toxicity-prefix axes, which behave very differently for a safety guard)."""
+    pc = rep.get("per_category", {})
+    num = sum(pc[c]["recall"] * pc[c]["n"] for c in categories if c in pc)
+    den = sum(pc[c]["n"] for c in categories if c in pc)
+    return round(num / den, 4) if den else 0.0
+
+
 # ---- in-sandbox verification stub (no real harmful text) ------------------------------------------
 class _StubGuard:
     """Flags any sample tagged '[UNSAFE:<cat>]' whose category is NOT in `blind_to` - lets the test

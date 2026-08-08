@@ -61,11 +61,18 @@ def mcp_poisoning_eval(scanner=None, verbose=True):
         benign_pass.append(not r["poisoned"])
         if verbose and r["poisoned"]:
             print(f"  FALSE POSITIVE (benign flagged): {t['name']} via {r['field']} {r['rules']}")
+    from eval.metrics import wilson_ci
     detection = sum(det) / max(len(det), 1)
     passrate = sum(benign_pass) / max(len(benign_pass), 1)
+    det_ci = wilson_ci(sum(det), len(det))
+    pass_ci = wilson_ci(sum(benign_pass), len(benign_pass))
     if verbose:
-        print(f"\nMCP tool-poisoning: detection={detection:.2f} on {len(POISONED)} poisoned, "
-              f"benign pass-rate={passrate:.2f} on {len(BENIGN)} legitimate "
+        print(f"\nMCP tool-poisoning: detection={detection:.2f} 95% CI [{det_ci[0]:.2f}, {det_ci[1]:.2f}] "
+              f"on {len(POISONED)} poisoned, benign pass-rate={passrate:.2f} "
+              f"95% CI [{pass_ci[0]:.2f}, {pass_ci[1]:.2f}] on {len(BENIGN)} legitimate "
               f"(false-positive rate={1 - passrate:.2f})")
+        print("  (small-n: the wide CIs are honest - grow the sets to tighten them)")
     return {"detection": detection, "benign_pass_rate": passrate,
+            "detection_ci95": [round(det_ci[0], 3), round(det_ci[1], 3)],
+            "benign_pass_ci95": [round(pass_ci[0], 3), round(pass_ci[1], 3)],
             "n_poisoned": len(POISONED), "n_benign": len(BENIGN)}

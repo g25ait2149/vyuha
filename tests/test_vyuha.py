@@ -198,6 +198,22 @@ def test_p15_nist_rmf_benchmark_recall_math():
     assert rep["overall_recall"] == 0.875 and rep["benign_fpr"] == 0.0
 
 
+def test_wilson_ci_headline_intervals():
+    from eval.metrics import wilson_ci
+    # balanced case matches the textbook Wilson interval
+    lo, hi = wilson_ci(50, 100)
+    assert abs(lo - 0.404) < 0.005 and abs(hi - 0.596) < 0.005
+    # perfect recall on n=150 is NOT [1,1] - the honest lower bound sits below 1
+    lo2, hi2 = wilson_ci(150, 150)
+    assert hi2 == 1.0 and 0.97 < lo2 < 1.0
+    # zero events stays at 0 with a small upper bound (never negative)
+    lo3, hi3 = wilson_ci(0, 100)
+    assert lo3 == 0.0 and 0.0 < hi3 < 0.05
+    # tiny n (the MCP/L4 sets) -> deliberately wide interval
+    lo4, hi4 = wilson_ci(5, 5)
+    assert lo4 < 0.6 and hi4 == 1.0
+
+
 def test_service_endpoints():
     try:
         from fastapi.testclient import TestClient

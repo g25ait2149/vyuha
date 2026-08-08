@@ -62,7 +62,8 @@ def _pick_text_col(df, preferred):
 
 def _load_split(hf, config, split):
     from datasets import load_dataset
-    ds = load_dataset(hf, config, split=split, token=True) if config else load_dataset(hf, split=split, token=True)
+    tok = os.environ.get("HF_TOKEN") or None   # use a token if present; else anonymous (public datasets)
+    ds = load_dataset(hf, config, split=split, token=tok) if config else load_dataset(hf, split=split, token=tok)
     return ds.to_pandas()
 
 
@@ -75,7 +76,7 @@ def load_source(spec, max_rows=4000):
             try:
                 df = _load_split(spec["hf"], spec["config"], split)
             except Exception:
-                names = get_dataset_split_names(spec["hf"], spec["config"], token=True)
+                names = get_dataset_split_names(spec["hf"], spec["config"], token=(os.environ.get("HF_TOKEN") or None))
                 df = _load_split(spec["hf"], spec["config"], names[0])
             tcol = _pick_text_col(df, spec.get("text", "prompt"))
             out = pd.DataFrame({"text": df[tcol].astype(str)})

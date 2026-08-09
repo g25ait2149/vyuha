@@ -13,6 +13,11 @@
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{microtype}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{url}
 
 \title{Vyuha: A Reproducible, Free-Compute Layered Guardrail for Deploying\\
 LLM Defenses --- and How to Measure One Honestly}
@@ -66,9 +71,32 @@ adaptive-attack ablation, a standardised-benchmark reconstruction, and base-rate
 discipline; and (3) an honest account, at every layer, of where stronger work exists. No single
 component is a new algorithm; the contribution is the measured composition and its reproducibility.
 
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[font=\footnotesize, >=Stealth,
+  box/.style={draw, rounded corners, minimum height=8mm, minimum width=13mm, align=center, fill=blue!5}]
+\node[box] (in) {input};
+\node[box, right=4mm of in] (l0) {L0\\normalise};
+\node[box, right=4mm of l0] (l1) {L1 fast\\(CPU $\sim$8ms)};
+\node[box, right=4mm of l1] (l2) {L2\\guard};
+\node[box, right=4mm of l2] (l3) {L3\\agent};
+\node[box, right=4mm of l3] (l4) {L4\\output};
+\node[box, right=4mm of l4] (out) {allow /\\redact /\\block};
+\foreach \a/\b in {in/l0, l0/l1, l1/l2, l2/l3, l3/l4, l4/out} \draw[->] (\a)--(\b);
+\node[above=1mm of l2, font=\scriptsize\itshape] {uncertain band only};
+\node[box, fill=orange!12, below=6mm of l2, minimum width=40mm] (l5)
+  {L5 ops: red-team $\cdot$ PSI drift $\cdot$ session (Crescendo) monitor $\cdot$ self-hardening};
+\draw[->, dashed] (l5.north) -- (l2.south);
+\end{tikzpicture}
+\caption{The Vyuha cascade. The CPU fast layer (L1) triages the majority of traffic; the expensive
+content guard (L2) is consulted only on the uncertain band; L3 defends the agent/tool path; L4 gates
+egress; and L5 continuously red-teams and monitors.}
+\label{fig:arch}
+\end{figure*}
+
 \section{The Vyuha System}
-Vyuha is a pipeline of six layers, each owning a different failure mode and escalating only when
-needed (a \emph{selective cascade} that keeps per-request cost low).
+Vyuha is a pipeline of six layers (Figure~\ref{fig:arch}), each owning a different failure mode and
+escalating only when needed (a \emph{selective cascade} that keeps per-request cost low).
 
 \paragraph{L0 --- Normalisation.} De-obfuscation (Unicode NFKC, Base64/ROT13 decode-and-rescreen,
 homoglyph mapping, zero-width/bidi stripping) plus an \emph{adaptive multi-view de-spacing} routine
@@ -145,7 +173,25 @@ at $\sim$8$\times$ lower latency and lower over-refusal. Recall under attack is 
 character-spacing and a \emph{held-out} wider-spacing variant; the adaptive de-spacing fix closed the
 character-spacing gap from ASR 0.83 to 0.00 and generalises to the held-out variant.
 
-\paragraph{Adaptive robustness (C4).} Against an adaptive attacker (exhaustive search over 101
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[ybar, width=\columnwidth, height=4.2cm, font=\scriptsize, bar width=5pt,
+  ymin=0, ymax=1.08, ylabel={ASR}, symbolic x coords={vanilla,L0 only,aug only,L0+aug},
+  xtick=data, x tick label style={rotate=12,anchor=east}, ymajorgrids, tick align=outside,
+  enlarge x limits=0.18, legend style={at={(0.5,1.13)},anchor=south,legend columns=2,draw=none}]
+\addplot coordinates {(vanilla,1.00)(L0 only,0.02)(aug only,0.03)(L0+aug,0.01)};
+\addplot coordinates {(vanilla,1.00)(L0 only,1.00)(aug only,0.25)(L0+aug,0.03)};
+\legend{static,adaptive}
+\end{axis}
+\end{tikzpicture}
+\caption{Adaptive-attack ablation (C4), 150 in-the-wild seeds. L0 normalisation alone cuts
+\emph{static} ASR to 0.02 but the adaptive attacker still reaches 1.00; adversarial augmentation is
+the load-bearing fix, closing adaptive ASR to 0.03 at 1\% FPR.}
+\label{fig:adaptive}
+\end{figure}
+
+\paragraph{Adaptive robustness (C4).} Figure~\ref{fig:adaptive} shows the ablation. Against an adaptive attacker (exhaustive search over 101
 single/paired evasions per seed) on 150 real in-the-wild jailbreak seeds: a bare detector is fully
 evaded (1.00). Normalisation alone drops the \emph{static} per-mutator ASR to 0.02 yet the adaptive
 attacker still reaches 1.00 [0.97,1.00] --- a $+0.98$ ``attacker-moves-second'' premium the static
@@ -212,11 +258,11 @@ redaction is best-effort, not a compliance guarantee. The system is intended to 
 oversight and continuous red-teaming.
 
 \begin{thebibliography}{9}
-\bibitem[OWASP(2025)]{owasp-llm} OWASP. 2025. \emph{OWASP Top 10 for Large Language Model Applications}.
-\bibitem[Anonymous(2025)]{attacker-second} 2025. The Attacker Moves Second: adaptive attacks bypass recent LLM defenses. OpenReview.
-\bibitem[Russinovich et~al.(2025)]{crescendo} Russinovich et~al. 2025. Great, Now Write an Article About That: The Crescendo Multi-Turn Jailbreak. USENIX Security.
-\bibitem[Harsh et~al.(2026)]{guard-bench} Harsh, Sarmah, and Pasquali. 2026. Benchmarking Open-Source Safety Guard Models: A Comprehensive Evaluation. arXiv:2605.28830.
-\bibitem[Debenedetti et~al.(2025)]{camel} Debenedetti et~al. 2025. Defeating Prompt Injections by Design (CaMeL).
+\bibitem[OWASP(2025)]{owasp-llm} OWASP Foundation. 2025. \emph{OWASP Top 10 for Large Language Model Applications (2025)}. \url{https://genai.owasp.org}.
+\bibitem[Nasr et~al.(2025)]{attacker-second} Milad Nasr, Nicholas Carlini, Chawin Sitawarin, Sander Schulhoff, Jamie Hayes, Ilia Shumailov, Andreas Terzis, and Florian Tram\`er. 2025. The Attacker Moves Second: Stronger Adaptive Attacks Bypass Defenses Against LLM Jailbreaks and Prompt Injections. \emph{arXiv:2510.09023}.
+\bibitem[Russinovich et~al.(2024)]{crescendo} Mark Russinovich, Ahmed Salem, and Ronen Eldan. 2024. Great, Now Write an Article About That: The Crescendo Multi-Turn LLM Jailbreak Attack. \emph{arXiv:2404.01833} (USENIX Security 2025).
+\bibitem[Harsh et~al.(2026)]{guard-bench} Reetu Raj Harsh, Bhaskarjit Sarmah, and Stefano Pasquali. 2026. Benchmarking Open-Source Safety Guard Models: A Comprehensive Evaluation. \emph{arXiv:2605.28830} (ICLR 2026 Workshop).
+\bibitem[Debenedetti et~al.(2025)]{camel} Edoardo Debenedetti, Ilia Shumailov, Tianqi Fan, Jamie Hayes, Nicholas Carlini, Daniel Fabian, Christoph Kern, Chongyang Shi, Andreas Terzis, and Florian Tram\`er. 2025. Defeating Prompt Injections by Design. \emph{arXiv:2503.18813}.
 \end{thebibliography}
 
 \end{document}

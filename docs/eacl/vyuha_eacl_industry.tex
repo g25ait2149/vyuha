@@ -203,7 +203,28 @@ to 0.03 [0.01,0.08] at 1\% benign FPR. The two are complementary --- augmentatio
 6.8\% (no surface tell) while the composed content guard flags 90.3\% at 4.8\% over-refusal ---
 semantics are, by design, L2's job, not L1's.
 
-\paragraph{NIST-AI-RMF guard benchmark (L2).} Scoring the 0.6B content guard on the 8 NIST-AI-RMF
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[ybar, width=\columnwidth, height=4.4cm, font=\scriptsize, bar width=6pt,
+  ymin=0, ymax=1.08, ylabel={recall}, xmin=0.4, xmax=8.6, xtick={1,2,3,4,5,6,7,8},
+  xticklabels={self-harm,violence,threats,sexual,hate,health,profanity,harass.},
+  x tick label style={rotate=35,anchor=east}, ymajorgrids, tick align=outside,
+  legend style={at={(0.5,1.15)},anchor=south,legend columns=2,draw=none,font=\tiny}]
+\addplot[fill=blue!55,draw=blue!55] coordinates {(1,1.00)(2,0.927)(3,0.900)(4,0.855)(5,0.680)(6,0.609)};
+\addplot[fill=orange!75,draw=orange!75] coordinates {(7,0.193)(8,0.073)};
+\draw[dashed] (axis cs:0.4,0.84) -- (axis cs:8.6,0.84);
+\node[font=\tiny] at (axis cs:2.1,0.90) {4B ref 0.84};
+\legend{BeaverTails (requests),RTP (prefixes)}
+\end{axis}
+\end{tikzpicture}
+\caption{NIST-RMF per-category recall (Qwen3Guard-0.6B). On complete-harmful-request axes
+(BeaverTails) it sits near the benchmark's 4B leader (0.84, dashed); the two toxicity-prefix axes
+(RealToxicityPrompts) are short fragments a request-focused guard flags less.}
+\label{fig:nist}
+\end{figure}
+
+\paragraph{NIST-AI-RMF guard benchmark (L2).} Figure~\ref{fig:nist} shows the per-category split. Scoring the 0.6B content guard on the 8 NIST-AI-RMF
 categories \citep{guard-bench} (a reconstruction from BeaverTails and RealToxicityPrompts;
 807 unsafe / 800 benign; not the official split): recall is 0.799 on the six
 complete-harmful-request axes --- level with the benchmark's best model (Qwen Guard 4B, 0.840)
@@ -221,13 +242,39 @@ per-message moderator (every turn stays sub-threshold).
 
 \section{Deployment and Governance}
 Vyuha ships as a Python library, a FastAPI service (\texttt{/scan}, \texttt{/moderate},
-\texttt{/guard\_turn}), and a CLI, so a team can drop it in front of or behind an LLM. The selective
-cascade bounds per-request cost by keeping the guard off the hot path; thresholds are tuned to the
-deployment's benign base rate. For governance, layers map to the OWASP LLM Top~10 (LLM01 prompt
-injection $\rightarrow$ L0--L3; LLM02/LLM07 disclosure/leakage $\rightarrow$ L4; LLM06 excessive
-agency $\rightarrow$ L3) and to the NIST AI RMF Measure/Manage functions, with out-of-scope risks
-named rather than papered over. Continuous red-teaming and a drift monitor support operational
-maintenance as the attack mix shifts.
+\texttt{/guard\_turn}), and a CLI, so a team can place it in front of or behind an LLM with a few
+lines of code.
+
+\paragraph{Cost.} The selective cascade bounds per-request cost. The CPU fast layer ($\sim$8\,ms)
+decides the majority of traffic, and the GPU content guard runs only on the uncertain band, so the
+expected guard cost per request scales with the \emph{uncertain-band rate} rather than with total
+traffic --- the lever a deployment actually controls. Because production traffic is overwhelmingly
+benign, thresholds are set at a fixed low false-positive rate, where a small change in FPR dominates
+total operating cost; recall is then reported at that operating point rather than at a default 0.5.
+
+\paragraph{Governance.} Layers map onto the OWASP LLM Top~10 and the NIST AI RMF Measure/Manage
+functions (Table~\ref{tab:gov}); risks outside scope are named rather than papered over. Continuous
+red-teaming, the PSI drift monitor, and the self-hardening loop support lifecycle maintenance as the
+attack mix shifts --- the operational-maturity concern this track foregrounds --- and every reported
+number is regenerable from versioned public notebooks, giving a simple audit trail.
+
+\begin{table}[t]\centering\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{OWASP LLM risk} & \textbf{Covered by} \\
+\midrule
+LLM01 Prompt injection & L0--L3 \\
+LLM02 Sensitive-info disclosure & L4 PII/secret redaction \\
+LLM06 Excessive agency & L3 tool policy + Dual-LLM \\
+LLM07 System-prompt leakage & L4 canary + n-gram \\
+LLM09 Misinformation & L2/L4 response scoring \\
+\midrule
+\multicolumn{2}{@{}p{0.94\columnwidth}@{}}{\emph{Out of scope, stated explicitly:} LLM03 supply chain, LLM04 data poisoning, LLM10 unbounded consumption.} \\
+\bottomrule
+\end{tabular}
+\caption{Governance mapping. Also aligned to NIST AI RMF (Measure/Manage) and MITRE ATLAS.}
+\label{tab:gov}
+\end{table}
 
 \section{Related Work and Conclusion}
 Vyuha's obfuscation robustness is shared with strong neural guardrails; its defensible edge is cost,

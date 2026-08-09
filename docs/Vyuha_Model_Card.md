@@ -100,7 +100,9 @@ Recall is reported at a fixed 1% FPR.
   (character-spacing 0.83 -> 0.00; adaptive 1.00 -> 0.50). **PSI drift monitor trips (PSI 11.8)** on
   an attack-surge window. A **session-escalation monitor** flags multi-turn **Crescendo** attacks
   (rising-trend / sustained / refuse-then-rephrase-and-retry) that stay *below the per-message block
-  threshold on every single turn* - the trajectory a single-message moderator cannot see.
+  threshold on every single turn* - the trajectory a single-message moderator cannot see. On modeled
+  Crescendo score trajectories it flags **71% [95% CI 0.65-0.77]** at **0%** benign FP, versus **0%**
+  for a per-message moderator (every turn is sub-threshold).
 
 Point estimates depend on the run and on gated-dataset access; the P1-P6 notebooks reproduce
 them end to end.

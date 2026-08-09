@@ -231,7 +231,12 @@ complete-harmful-request axes --- level with the benchmark's best model (Qwen Gu
 despite being $\sim$7$\times$ smaller --- and 0.133 on the two toxicity-prefix axes (short fragments a
 safety guard reasonably flags less), for an aggregate 0.551 [0.52,0.58] at 6.4\% benign FPR. A small
 guard is competitive with a much larger one on complete harmful requests; the per-category spread is
-why L2 composes guards.
+why L2 composes guards. Composing a second, non-overlapping guard (Granite Guardian) in an OR union
+confirms the benchmark's ensembling recommendation --- recall rises across the board (overall
+$0.551\!\to\!0.715$; the weak toxicity axes $0.133\!\to\!0.373$) --- but the gain is not free: the
+naive union also raises benign FPR from 0.064 to 0.48, because the second guard over-flags this benign
+set at its default operating point. A deployable union must therefore run at per-member thresholds
+(fixed-FPR calibration), not a raw OR.
 
 \paragraph{Agent and multi-turn defense (L3, L5).} On AgentDojo (banking, \emph{important\_instructions}),
 L3 drives injection ASR to 0.00 on both a weak and a strong open agent; injection-under-obfuscation

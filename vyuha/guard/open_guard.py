@@ -10,7 +10,26 @@ ensemble members. Two modes:
 Requires `transformers` (+ a GPU for the LLM guards). Import is lazy and degrades
 gracefully so the rest of the harness runs without it.
 """
+import re
 import numpy as np
+
+_UNSAFE_FIRST = ("yes", "unsafe", "harmful", "true", "risky")
+_SAFE_FIRST = ("no", "safe", "false")
+
+
+def _verdict_unsafe(verdict):
+    """Map a guard's short generated verdict to unsafe=1.0 / safe=0.0 across output styles:
+    Qwen3Guard 'Safe/Controversial/Unsafe', Granite Guardian 'Yes/No' (Yes = unsafe), Llama Guard
+    'safe/unsafe'. Strips any <think>...</think> reasoning first, then reads the first answer token."""
+    v = re.sub(r"<think>.*?</think>", " ", str(verdict), flags=re.S | re.I).strip().lower()
+    if not v:
+        return 0.0
+    first = v.split()[0].strip(".,:;\"'*`-")
+    if first in _UNSAFE_FIRST:
+        return 1.0
+    if first in _SAFE_FIRST:
+        return 0.0
+    return 1.0 if ("unsafe" in v or "harmful" in v) else 0.0
 
 # Recommended NON-OVERLAPPING guard members for the L2 ensemble (each brings a different strength).
 # Model ids verified on the Hugging Face Hub (Aug 2026); pin an exact revision before a real run.
@@ -104,7 +123,7 @@ class OpenGuard:
                 gen = self.model.generate(**enc, max_new_tokens=16, do_sample=False,
                                           pad_token_id=self.tok.eos_token_id)
             verdict = self.tok.decode(gen[0, enc["input_ids"].shape[1]:], skip_special_tokens=True)
-            scores.append(1.0 if "unsafe" in verdict.lower() else 0.0)  # Qwen3Guard: Safe/Controversial/Unsafe
+            scores.append(_verdict_unsafe(verdict))   # handles Qwen 'Unsafe', Granite 'Yes', Llama 'unsafe'
         return np.array(scores)
 
     def proba_response(self, prompts, responses, batch_size=16):
@@ -135,5 +154,5 @@ class OpenGuard:
                 gen = self.model.generate(**enc, max_new_tokens=16, do_sample=False,
                                           pad_token_id=self.tok.eos_token_id)
             verdict = self.tok.decode(gen[0, enc["input_ids"].shape[1]:], skip_special_tokens=True)
-            scores.append(1.0 if "unsafe" in verdict.lower() else 0.0)
+            scores.append(_verdict_unsafe(verdict))   # response-side: same guard-agnostic parse
         return np.array(scores)

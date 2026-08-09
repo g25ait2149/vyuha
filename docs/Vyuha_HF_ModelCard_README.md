@@ -85,6 +85,11 @@ Recall is reported at a fixed 1% FPR.
   RJD-v2 ships as L1 and the ensemble is optional.
 - **L2 content guard (Qwen3Guard-0.6B):** carries harmful-topic (**XSTest unsafe 0.79**) and semantic
   (**PAIR 0.90**) coverage at **4.8%** over-refusal - the axes a surface L1 cannot.
+- **NIST-AI-RMF guard benchmark (arXiv:2605.28830 reconstruction; 807 unsafe / 800 benign):** the L2
+  content guard (Qwen3Guard-0.6B) reaches recall **0.799** on the 6 complete-harmful-request axes
+  (BeaverTails) - level with the paper's best 4B model (**0.840**) at ≈7x smaller - and 0.133 on the
+  2 toxicity-prefix axes (RealToxicityPrompts); overall **0.551 [0.52-0.58]** at **6.4%** benign FPR.
+  Recall is the critical metric; the per-category spread motivates the L2 guard ensemble.
 - **L2 tuned guard (QLoRA, 1.5B):** cross-benchmark ROC-AUC **0.72-0.92** on unseen jailbreaks at FRR
   0.03-0.06, but **jailbreak-only** (inert on harmful-topic XSTest 0.00 and semantic PAIR 0.03).
 - **Semantic attacks (PAIR, n=103):** L1 flags **6.8%**, tuned guard 2.9%, content guard **90.3%**;

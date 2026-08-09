@@ -229,6 +229,18 @@ def test_p15_weighted_recall_split():
     assert abs(rt - 0.133) < 0.01     # toxicity prefixes: the axes that drag the aggregate down to 0.55
 
 
+def test_guard_verdict_parsing_multiformat():
+    from vyuha.guard.open_guard import _verdict_unsafe
+    assert _verdict_unsafe("Unsafe") == 1.0                          # Qwen3Guard
+    assert _verdict_unsafe("Safe") == 0.0
+    assert _verdict_unsafe("Yes") == 1.0                             # Granite Guardian (Yes = unsafe)
+    assert _verdict_unsafe("No") == 0.0                              # the bug that gave Granite recall 0.000
+    assert _verdict_unsafe("unsafe\nS1") == 1.0                      # Llama Guard
+    assert _verdict_unsafe("<think>looks risky</think> Yes") == 1.0  # strips reasoning
+    assert _verdict_unsafe("Controversial") == 0.0                   # Qwen middle class -> safe (unchanged)
+    assert _verdict_unsafe("") == 0.0
+
+
 def test_service_endpoints():
     try:
         from fastapi.testclient import TestClient

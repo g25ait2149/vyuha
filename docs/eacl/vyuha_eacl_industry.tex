@@ -1,0 +1,222 @@
+% EACL 2027 Industry Track submission - Vyuha
+% Overleaf setup: use the official ACL template (https://github.com/acl-org/acl-style-files).
+% Place acl.sty and acl_natbib.bst in the project. Do NOT modify the style files.
+% This draft is ANONYMISED for double-blind review (no author names; repo links anonymised).
+% Content target: <= 6 pages (References, Limitations, Ethics, Appendix do NOT count).
+\documentclass[11pt]{article}
+\usepackage[review]{acl}          % 'review' -> line numbers + anonymised
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+
+\title{Vyuha: A Reproducible, Free-Compute Layered Guardrail for Deploying\\
+LLM Defenses --- and How to Measure One Honestly}
+
+% --- anonymised for review ---
+\author{Anonymous EACL submission}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Prompt injection is the top risk in the OWASP Top~10 for LLM Applications, and recent
+adaptive-attack work shows any single filter, once known, can be evaded --- ``the attacker moves
+second.'' Yet most guard evaluations run on balanced laboratory sets, not deployment conditions.
+We present \textbf{Vyuha}, a defense-in-depth guardrail that composes six independent layers
+(normalisation, a CPU fast detector, a content guard, agent/tool-injection defense, output
+moderation, and continuous red-teaming) and ships as a library, a service, and a CLI. Our
+contribution is not a new algorithm but a \emph{deployable composition}, an
+\emph{evaluation methodology} suited to LLM-guard components (recall-first, confidence intervals,
+adaptive-attack ablation, a standardised-benchmark reconstruction, and base-rate discipline), and
+\emph{full reproducibility on a single free GPU}. We report security-grade metrics with 95\%
+confidence intervals: the CPU fast layer matches a GPU neural guard's obfuscation robustness at
+$\sim$8\,ms; against an adaptive attacker, normalisation alone leaves ASR at 1.00 while adversarial
+augmentation closes it to 0.03 at 1\% false-positive rate; on a NIST-AI-RMF guard benchmark our
+0.6B content guard reaches 0.799 recall on complete-harmful-request axes --- level with a 7$\times$
+larger model; and a session-level monitor catches 71\% of multi-turn (Crescendo) escalations a
+per-message moderator catches 0\% of. We are explicit throughout about where stronger
+(white-box, formally verified, or paid-compute) work exists.
+\end{abstract}
+
+\section{Introduction}
+Large language models deployed as assistants and autonomous agents face a moving adversary:
+jailbreaks that strip safety behaviour, prompt injections hidden in retrieved content and tool
+metadata, obfuscated and multilingual attacks, semantic (persuasion) attacks with no surface tell,
+and responses that leak secrets. Prompt injection is the \#1 risk in the OWASP Top~10 for LLM
+Applications \citep{owasp-llm}, and \citet{attacker-second} show that adaptive attackers bypass a
+dozen recent defenses at $>$90\% attack-success-rate (ASR) by tuning general optimisers: robustness
+must be \emph{measured}, not assumed.
+
+Two deployment realities are under-served by current practice. First, guards are typically evaluated
+on balanced attack/benign sets, whereas production traffic is overwhelmingly benign, so the
+false-positive rate dominates cost. Second, single-message moderation is the norm, yet multi-turn
+(Crescendo) attacks \citep{crescendo} escalate across turns while every individual turn stays benign.
+
+We present \textbf{Vyuha}, a layered guardrail built under one operating constraint --- it must train
+and run on a single free GPU --- so that every number is reproducible without a lab budget. Our
+contributions are: (1) a \emph{deployable} six-layer composition (library, service, CLI) with a
+selective cascade that keeps the expensive guard off the hot path; (2) an \emph{evaluation
+methodology} for LLM-guard components --- recall-first, with Wilson confidence intervals, an
+adaptive-attack ablation, a standardised-benchmark reconstruction, and base-rate and contamination
+discipline; and (3) an honest account, at every layer, of where stronger work exists. No single
+component is a new algorithm; the contribution is the measured composition and its reproducibility.
+
+\section{The Vyuha System}
+Vyuha is a pipeline of six layers, each owning a different failure mode and escalating only when
+needed (a \emph{selective cascade} that keeps per-request cost low).
+
+\paragraph{L0 --- Normalisation.} De-obfuscation (Unicode NFKC, Base64/ROT13 decode-and-rescreen,
+homoglyph mapping, zero-width/bidi stripping) plus an \emph{adaptive multi-view de-spacing} routine
+that detects letter-gap width dynamically. This is rule-based, deterministic, and free.
+
+\paragraph{L1 --- Fast detector (RJD-v2).} An always-on CPU triage ($\sim$8\,ms/prompt):
+TF-IDF char+word n-grams, engineered features, and a calibrated ensemble, trained with adversarial
+augmentation. It decides the majority of traffic so the expensive guard is consulted only on the
+uncertain band.
+
+\paragraph{L2 --- Content guard.} For harmful-topic and semantic coverage we \emph{compose} an open
+content guard (Qwen3Guard-0.6B), invoked on the cascade's uncertain band. We do not out-build mature
+content guards; the stack's semantic coverage is the composed guard's.
+
+\paragraph{L3 --- Agent defense.} An injection scanner de-obfuscates and sanitises untrusted tool
+outputs; an \emph{MCP tool-poisoning scanner} screens tool \emph{descriptions/metadata} at
+registration time; a tool policy enforces an instruction hierarchy (system\,$>$\,user\,$>$\,tool),
+hard-blocking a dangerous action that appears on a tainted turn and was not in the user's stated
+intent. This is a free-compute, black-box approximation of capability-based defenses such as CaMeL
+\citep{camel}, and we say so.
+
+\paragraph{L4 --- Output moderation.} An egress gate that redacts PII, blocks secret/credential and
+system-prompt/canary leakage, and scores response harm with the content guard on the
+(prompt, response) pair.
+
+\paragraph{L5 --- Continuous ops.} An automated red-team (public attacks only), a population drift
+monitor, a session-level escalation monitor for Crescendo, and a self-hardening loop.
+
+\section{Evaluation Methodology}
+Deploying LLM-based guards changes what a credible evaluation looks like; we adopt five practices.
+\textbf{(1) Recall-first.} A missed harmful item costs more than a false positive, so recall is the
+headline metric \citep{guard-bench}, reported at a fixed low false-positive rate rather than at a
+default threshold. \textbf{(2) Confidence intervals.} Every headline proportion is reported with a
+Wilson 95\% interval, which keeps small-$n$ claims honest (a ``perfect'' 1.00 on $n{=}5$ has a wide
+interval). \textbf{(3) Adaptive-attack ablation.} We measure against an attacker that searches over
+compositions of known evasions, and ablate each design choice, rather than reporting a static
+per-mutator number that understates the attack surface. \textbf{(4) Standardised benchmark.} We score
+the content guard on the 8 NIST-AI-RMF safety categories following \citet{guard-bench}.
+\textbf{(5) Base-rate and contamination discipline.} Benign controls are drawn from real user
+prompts; benchmark sets are held test-only. All numbers reproduce from public notebooks on a single
+Kaggle T4.
+
+\section{Results}
+Table~\ref{tab:main} summarises the measured results; all proportions carry 95\% confidence intervals.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Axis (layer)} & \textbf{Metric} & \textbf{Result} \\
+\midrule
+Obfuscation (L1) & recall & \textbf{1.00} incl.\ held-out \\
+ & latency & $\sim$8\,ms CPU \\
+Adaptive (L1) & ASR, L0 only & 1.00 [0.97,1.00] \\
+ & ASR, L0+aug & \textbf{0.03} [0.01,0.08] \\
+Semantic (L2) & PAIR recall & \textbf{0.90} (L1: 0.07) \\
+NIST-RMF (L2) & recall, req.\ axes & \textbf{0.799} ($\approx$4B: 0.84) \\
+ & benign FPR & 0.064 \\
+Agent inj.\ (L3) & AgentDojo ASR & 1.00\,$\rightarrow$\,\textbf{0.00} \\
+MCP poison (L3) & detection & \textbf{1.00} [0.87,1.00] \\
+Multi-turn (L5) & session detect & \textbf{0.71} [0.65,0.77] \\
+ & per-message & 0.00 \\
+Output (L4) & leak/harm F1 & \textbf{1.00} \\
+\bottomrule
+\end{tabular}
+\caption{Vyuha, security-grade metrics with 95\% CIs. Every value reproduces from public notebooks
+on a single free GPU.}
+\label{tab:main}
+\end{table}
+
+\paragraph{Obfuscation is closed cheaply (C1).} RJD-v2 reaches ROC-AUC 0.923, recall@1\%FPR 0.330,
+over-refusal 0.044 at $\sim$8\,ms on CPU --- matching a GPU DeBERTa injection guard (0.896 / 0.113)
+at $\sim$8$\times$ lower latency and lower over-refusal. Recall under attack is 1.00 on Base64, ROT13,
+character-spacing and a \emph{held-out} wider-spacing variant; the adaptive de-spacing fix closed the
+character-spacing gap from ASR 0.83 to 0.00 and generalises to the held-out variant.
+
+\paragraph{Adaptive robustness (C4).} Against an adaptive attacker (exhaustive search over 101
+single/paired evasions per seed) on 150 real in-the-wild jailbreak seeds: a bare detector is fully
+evaded (1.00). Normalisation alone drops the \emph{static} per-mutator ASR to 0.02 yet the adaptive
+attacker still reaches 1.00 [0.97,1.00] --- a $+0.98$ ``attacker-moves-second'' premium the static
+number hides. Adversarial augmentation is the load-bearing fix: the full detector holds adaptive ASR
+to 0.03 [0.01,0.08] at 1\% benign FPR. The two are complementary --- augmentation alone leaves 0.25
+[0.19,0.33], a non-overlapping interval --- so both design choices earn their place.
+
+\paragraph{Division of labour (L1 vs L2).} On 103 real PAIR jailbreaks the surface detector flags
+6.8\% (no surface tell) while the composed content guard flags 90.3\% at 4.8\% over-refusal ---
+semantics are, by design, L2's job, not L1's.
+
+\paragraph{NIST-AI-RMF guard benchmark (L2).} Scoring the 0.6B content guard on the 8 NIST-AI-RMF
+categories \citep{guard-bench} (a reconstruction from BeaverTails and RealToxicityPrompts;
+807 unsafe / 800 benign; not the official split): recall is 0.799 on the six
+complete-harmful-request axes --- level with the benchmark's best model (Qwen Guard 4B, 0.840)
+despite being $\sim$7$\times$ smaller --- and 0.133 on the two toxicity-prefix axes (short fragments a
+safety guard reasonably flags less), for an aggregate 0.551 [0.52,0.58] at 6.4\% benign FPR. A small
+guard is competitive with a much larger one on complete harmful requests; the per-category spread is
+why L2 composes guards.
+
+\paragraph{Agent and multi-turn defense (L3, L5).} On AgentDojo (banking, \emph{important\_instructions}),
+L3 drives injection ASR to 0.00 on both a weak and a strong open agent; injection-under-obfuscation
+detection is 1.00 versus 0.00--0.17 for a regex baseline. The MCP scanner detects 1.00 [0.87,1.00] of
+poisoned tool metadata at zero false positives on 25 poisoned / 27 benign tools. The session-level
+monitor flags 71\% [0.65,0.77] of modeled Crescendo escalations at 0\% benign FPR, versus 0\% for a
+per-message moderator (every turn stays sub-threshold).
+
+\section{Deployment and Governance}
+Vyuha ships as a Python library, a FastAPI service (\texttt{/scan}, \texttt{/moderate},
+\texttt{/guard\_turn}), and a CLI, so a team can drop it in front of or behind an LLM. The selective
+cascade bounds per-request cost by keeping the guard off the hot path; thresholds are tuned to the
+deployment's benign base rate. For governance, layers map to the OWASP LLM Top~10 (LLM01 prompt
+injection $\rightarrow$ L0--L3; LLM02/LLM07 disclosure/leakage $\rightarrow$ L4; LLM06 excessive
+agency $\rightarrow$ L3) and to the NIST AI RMF Measure/Manage functions, with out-of-scope risks
+named rather than papered over. Continuous red-teaming and a drift monitor support operational
+maintenance as the attack mix shifts.
+
+\section{Related Work and Conclusion}
+Vyuha's obfuscation robustness is shared with strong neural guardrails; its defensible edge is cost,
+reproducibility, composition robustness, and honest measurement. Content guards are stronger on
+semantics (we compose one); CaMeL \citep{camel} offers capability guarantees our black-box L3 only
+approximates; representation-level defenses report lower residual ASR but require model access. We
+conclude that a credible, modern LLM guardrail can be assembled from independent, individually cheap
+layers entirely on free compute, and --- crucially --- measured honestly, with confidence intervals,
+adaptive attacks, and a standardised benchmark, so that its real strengths and limits are visible.
+
+\section*{Limitations}
+The surface detector (L1) does not and should not catch harmful-topic or semantic attacks; those
+depend entirely on the composed content guard, whose semantic ceiling we do not improve upon. Our own
+fine-tuned guard is jailbreak-only. The agent layer (L3) is a lightweight black-box approximation
+without the provenance guarantees of capability-based defenses; the AgentDojo arm's $n$ is small
+(free-tier quota) and a same-backend comparison to CaMeL's published mitigation needs paid compute.
+The NIST-RMF result is an indicative reconstruction, not the official 79{,}331-sample split, and the
+two toxicity-prefix axes are short fragments a request-focused guard reasonably under-flags. The
+Crescendo result is on modeled score trajectories. Some efficiency and attack-cost figures are
+estimates under a measured detection rate, labelled as such. No stack is unbreakable; Vyuha raises
+cost, it does not guarantee safety.
+
+\section*{Ethics}
+Vyuha is a defensive safety filter. Its red-team and attack code mutate only attacks already present
+in public corpora, for evaluation and hardening; the repository contains no novel weaponisation.
+Harmful-content datasets are loaded read-only for measurement and no harmful text is authored. PII
+redaction is best-effort, not a compliance guarantee. The system is intended to operate with human
+oversight and continuous red-teaming.
+
+\begin{thebibliography}{9}
+\bibitem[OWASP(2025)]{owasp-llm} OWASP. 2025. \emph{OWASP Top 10 for Large Language Model Applications}.
+\bibitem[Anonymous(2025)]{attacker-second} 2025. The Attacker Moves Second: adaptive attacks bypass recent LLM defenses. OpenReview.
+\bibitem[Russinovich et~al.(2025)]{crescendo} Russinovich et~al. 2025. Great, Now Write an Article About That: The Crescendo Multi-Turn Jailbreak. USENIX Security.
+\bibitem[Harsh et~al.(2026)]{guard-bench} Harsh, Sarmah, and Pasquali. 2026. Benchmarking Open-Source Safety Guard Models: A Comprehensive Evaluation. arXiv:2605.28830.
+\bibitem[Debenedetti et~al.(2025)]{camel} Debenedetti et~al. 2025. Defeating Prompt Injections by Design (CaMeL).
+\end{thebibliography}
+
+\end{document}

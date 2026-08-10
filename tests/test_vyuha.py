@@ -251,6 +251,17 @@ def test_p12c_crescendo_eval():
     assert rep["benign_fp"] <= 0.1                                                # low false alarms on benign
 
 
+def test_agentdojo_resume_cache():
+    import tempfile, os
+    from eval.agentdojo_eval import _ad_cache_path, _ad_load_cache, _ad_save_cache
+    d = tempfile.mkdtemp()
+    p = _ad_cache_path(d, "banking", "openai/gpt-oss-120b", "important_instructions", defended=True)
+    assert os.path.basename(p) == "adcache_banking_openai_gpt-oss-120b_important_instructions_def.json"
+    assert _ad_load_cache(p) == {}                             # missing cache -> empty (fresh start)
+    _ad_save_cache(p, {"u0": {"util": [True], "sec": [False]}})
+    assert _ad_load_cache(p)["u0"]["sec"] == [False]          # roundtrip -> resume finds completed tasks
+
+
 def test_service_endpoints():
     try:
         from fastapi.testclient import TestClient

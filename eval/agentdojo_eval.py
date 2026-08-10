@@ -73,10 +73,34 @@ def list_models(provider="groq", api_key=None, base_url=None):
     return ids
 
 
+def _ad_cache_path(logdir, suite, model, attack, defended):
+    import os, re
+    m = re.sub(r"[^A-Za-z0-9.\-]", "_", str(model))
+    return os.path.join(str(logdir), f"adcache_{suite}_{m}_{attack}_{'def' if defended else 'undef'}.json")
+
+
+def _ad_load_cache(path):
+    import json
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _ad_save_cache(path, data):
+    import os, json
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f)
+    os.replace(tmp, path)   # atomic -> a free-tier cap mid-write can't corrupt the cache
+
+
 def run_agentdojo_l3(api_key=None, provider="groq", model=None, base_url=None,
                      suite_name="banking", attack_name="important_instructions", version="v1.2.2",
                      n_user_tasks=2, n_injection_tasks=1, raise_on_injection=False,
-                     rpm_interval=2.0, max_retries=4, logdir="agentdojo_runs", verbose=True):
+                     rpm_interval=2.0, max_retries=4, logdir="agentdojo_runs", resume=True, verbose=True):
     """Baseline vs Vyuha-L3 on an AgentDojo suite subset. Returns a dict of per-arm
     {utility_under_attack, injection_asr, security, n}. Heavy imports are lazy so importing this
     module never requires agentdojo/google to be installed."""
@@ -199,29 +223,37 @@ def run_agentdojo_l3(api_key=None, provider="groq", model=None, base_url=None,
     for defended in (False, True):
         pipe = _pipeline(defended)
         attack = load_attack(attack_name, suite, pipe)
-        util_all, sec_all, skipped = {}, {}, 0
-        # Run task-by-task so one provider-side parse/tool hiccup skips just that trial instead of
-        # crashing the whole run (Groq occasionally can't parse a model's reasoning-channel output).
+        cache_path = _ad_cache_path(logdir, suite_name, model, attack_name, defended)
+        cache = _ad_load_cache(cache_path) if resume else {}
+        util_vals, sec_vals, skipped, ran = [], [], 0, 0
+        # Run task-by-task so one provider-side hiccup skips just that trial; and cache each completed
+        # user task so a free-tier daily-cap interruption keeps progress - re-run the same config to
+        # resume and accumulate n across days (no paid tier needed).
         with OutputLogger(str(logdir), live=None):
             for uid in user_ids:
+                if uid in cache:                                   # already done on a previous run
+                    util_vals += cache[uid]["util"]; sec_vals += cache[uid]["sec"]; continue
                 utask = suite.get_user_task_by_id(uid)
                 try:
                     u, s = run_task_with_injection_tasks(
                         suite, pipe, utask, attack, Path(logdir), False, inj_ids, version)
-                    util_all.update(u)
-                    sec_all.update(s)
+                    uv, sv = [bool(v) for v in u.values()], [bool(v) for v in s.values()]
+                    cache[uid] = {"util": uv, "sec": sv}
+                    if resume:
+                        _ad_save_cache(cache_path, cache)          # incremental, interruption-safe
+                    util_vals += uv; sec_vals += sv; ran += 1
                 except Exception as e:
                     skipped += 1
                     if verbose:
                         print(f"    [skip] {uid}: {str(e)[:90]}")
-        util = _mean(util_all)
-        sec = _mean(sec_all)
+        util = sum(util_vals) / max(len(util_vals), 1)
+        sec = sum(sec_vals) / max(len(sec_vals), 1)
         label = "Vyuha L3" if defended else "undefended"
         out[label] = {"utility_under_attack": round(util, 3), "injection_asr": round(1.0 - sec, 3),
-                      "security": round(sec, 3), "n": len(sec_all), "skipped": skipped}
+                      "security": round(sec, 3), "n": len(sec_vals), "skipped": skipped, "new_this_pass": ran}
         if verbose:
             print(f"  {label:<11} utility-under-attack={util:.2f}  injection ASR={1.0 - sec:.2f}  "
-                  f"(n={out[label]['n']}, skipped={skipped})")
+                  f"(n={out[label]['n']}, new-this-pass={ran}, skipped={skipped})")
 
     if verbose and {"undefended", "Vyuha L3"} <= set(out):
         u, v = out["undefended"], out["Vyuha L3"]

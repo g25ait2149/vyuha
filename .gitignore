@@ -58,3 +58,6 @@ GITHUB.md
 # private research/planning docs (local only)
 VYUHA_RESEARCH_ROADMAP.md
 AEGIS_RESEARCH_ROADMAP.md
+
+# Kaggle-downloaded result notebooks (hyphenated names); canonical ones use underscores
+notebooks/vyuha-*.ipynb

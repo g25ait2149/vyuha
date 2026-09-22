@@ -290,9 +290,12 @@ model dominates \citep{guard-bench}. Vyuha does not out-build any of these --- i
 behind a CPU fast layer and measures the resulting division of labour.
 \textbf{Adaptive attacks and hardening.} Static defenses fall to adaptive attackers:
 \citet{attacker-second} bypass twelve defenses at $>$90\% ASR, and PISmith \citep{pismith} trains an
-RL red-teamer that beats state-of-the-art prompt-injection defenses. Our adaptive-attack ablation is a
-black-box, search-based instance of this discipline; a learned RL attacker is stronger than ours and a
-natural stress test (see Limitations). HASTE \citep{haste} proactively hardens detectors by generating
+RL red-teamer, on the PIArena platform \citep{piarena}, that beats state-of-the-art prompt-injection
+defenses. Our adaptive-attack ablation is a black-box, search-based instance of this discipline; a
+learned RL attacker is stronger than ours and a natural stress test. We therefore ship Vyuha as a
+PIArena defense plug-in (released with the repository), so it is measured by the same static and search-based suite
+(Direct, Combined, TAP, PAIR) alongside PIArena's published defenses; the RL attacker is a multi-GPU
+upper bound we cite rather than claim to withstand (see Limitations). HASTE \citep{haste} proactively hardens detectors by generating
 evasive prompts; our L5 self-hardening loop is a lightweight, free-compute, signature-based counterpart
 that we do not claim to improve upon.
 \textbf{Agentic and capability defenses.} CaMeL \citep{camel} gives formal capability guarantees our
@@ -326,9 +329,12 @@ The NIST-RMF result is an indicative reconstruction, not the official 79{,}331-s
 two toxicity-prefix axes are short fragments a request-focused guard reasonably under-flags. The
 Crescendo result is on modeled score trajectories. Our adaptive attacker searches over
 public transforms --- both an exhaustive pairwise sweep and a harder genetic (deep-chain, crossover)
-search, which the augmented detector also survives at the reported operating point; a \emph{learned}
-RL red-teamer such as PISmith \citep{pismith} optimises against the model rather than composing fixed
-transforms and is stronger still, so a direct head-to-head remains future work. Some efficiency and attack-cost figures are
+search, which the augmented detector also survives at the reported operating point. To place Vyuha in
+a shared harness we release it as a PIArena \citep{piarena} defense plug-in; the static and
+search-based head-to-head (Direct, Combined, TAP, PAIR) is single-GPU runnable, whereas the strongest
+cited attacker --- the \emph{learned} RL red-teamer PISmith \citep{pismith}, which optimises against
+the model rather than composing fixed transforms --- requires a multi-GPU training rig, so that
+comparison is a stated upper bound rather than a claim of robustness. Some efficiency and attack-cost figures are
 estimates under a measured detection rate, labelled as such. No stack is unbreakable; Vyuha raises
 cost, it does not guarantee safety.
 
@@ -346,7 +352,8 @@ oversight and continuous red-teaming.
 \bibitem[Harsh et~al.(2026)]{guard-bench} Reetu Raj Harsh, Bhaskarjit Sarmah, and Stefano Pasquali. 2026. Benchmarking Open-Source Safety Guard Models: A Comprehensive Evaluation. \emph{arXiv:2605.28830} (ICLR 2026 Workshop).
 \bibitem[Debenedetti et~al.(2025)]{camel} Edoardo Debenedetti, Ilia Shumailov, Tianqi Fan, Jamie Hayes, Nicholas Carlini, Daniel Fabian, Christoph Kern, Chongyang Shi, Andreas Terzis, and Florian Tram\`er. 2025. Defeating Prompt Injections by Design. \emph{arXiv:2503.18813}.
 \bibitem[Jacob et~al.(2025)]{promptshield} Dennis Jacob et~al. 2025. PromptShield: Deployable Detection for Prompt Injection Attacks. \emph{arXiv:2501.15145}; ACM CODASPY 2025.
-\bibitem[PISmith(2026)]{pismith} PISmith: Reinforcement Learning-based Red Teaming for Prompt Injection Defenses. 2026. \emph{arXiv:2603.13026}.
+\bibitem[Yin et~al.(2026)]{pismith} Chenlong Yin, Runpeng Geng, Yanting Wang, and Jinyuan Jia. 2026. PISmith: Reinforcement Learning-based Red Teaming for Prompt Injection Defenses. \emph{arXiv:2603.13026} (COLM 2026).
+\bibitem[Geng et~al.(2026)]{piarena} Runpeng Geng, Chenlong Yin, Yanting Wang, Ying Chen, and Jinyuan Jia. 2026. PIArena: A Platform for Prompt Injection Evaluation. \emph{arXiv:2604.08499} (ACL 2026).
 \bibitem[HASTE(2026)]{haste} Proactive Hardening of LLM Defenses with HASTE. 2026. \emph{arXiv:2601.19051}; NDSS.
 \end{thebibliography}
 

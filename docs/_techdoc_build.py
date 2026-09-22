@@ -485,6 +485,28 @@ H.append(chart_coverage())
 H.append('<div class="chartcap">Harmful-topic and semantic attacks are an L2 job — the content guard (Qwen3Guard) catches 79% / 90%, while the surface L1 detector and our jailbreak-only tuned guard catch almost none <i>on these two axes</i>. The right panel shows the tuned guard on the axis it was built for: it generalises to jailbreaks it never trained on at ROC-AUC 0.72–0.92 (a different metric from the detection rate at left). The near-zero bars are by design, not a failure — each layer is measured on the axis it owns.</div>')
 H.append(chart_agentdojo())
 H.append('<div class="chartcap">L3 on AgentDojo — the injection lands every time on a weak agent (1.00) and 6% of the time on a strong one; behind L3 it lands 0% in both, and the strong agent still gets useful work done.</div>')
+H.append('<h3 style="page-break-before: always">7.4 · New measured results (added since the first review)</h3>')
+H.append('<p>Since this document was first reviewed, four evaluations were added, each reported with '
+         '<b>95% confidence intervals</b>. Together they are the project&rsquo;s measured contributions — the '
+         'standardised-benchmark, adaptive-attack, multi-turn, and ensemble evidence that answers '
+         '&ldquo;where is the novelty?&rdquo; with numbers rather than assertion.</p>')
+H.append(table(
+    ["Axis / claim", "Result (95% CI)", "Tested on"],
+    [["Adaptive robustness (C4)", "L0-only: static ASR 0.02 but adaptive <b>1.00</b> [0.97&ndash;1.00] "
+      "(<b>+0.98</b> &ldquo;attacker-moves-second&rdquo; premium); full RJD-v2 (L0+aug) adaptive <b>0.03</b> "
+      "[0.01&ndash;0.08] at 1% FPR; augmentation alone 0.25 [0.19&ndash;0.33] &mdash; L0 and augmentation are "
+      "complementary, both earn their place", "150 in-the-wild seeds, 500 benign"],
+     ["NIST-AI-RMF guard benchmark", "Qwen3Guard-0.6B recall <b>0.799</b> on the 6 complete-harmful-request "
+      "axes &mdash; level with the benchmark&rsquo;s best 4B model (0.840) at &asymp;7&times; smaller &mdash; vs "
+      "0.133 on the 2 toxicity-prefix axes; overall 0.551 [0.52&ndash;0.58] at 6.4% benign FPR",
+      "807 unsafe / 800 benign (arXiv:2605.28830 reconstruction)"],
+     ["Guard ensemble (+ Granite Guardian)", "an OR union lifts recall <b>0.551&rarr;0.715</b> (weak axes "
+      "0.133&rarr;0.373) &mdash; confirming the benchmark&rsquo;s ensembling recommendation &mdash; but raises "
+      "benign FPR 0.064&rarr;0.48, so a deployable union must run at per-member thresholds", "same NIST-RMF set"],
+     ["MCP tool-poisoning (L3)", "hidden-instruction detection <b>1.00</b> [0.87&ndash;1.00] at <b>0</b> false "
+      "positives", "25 poisoned / 27 benign tool definitions"],
+     ["Multi-turn / Crescendo (L5)", "session-level detection <b>0.71</b> [0.65&ndash;0.77] versus <b>0.00</b> "
+      "for a per-message moderator (every turn stays sub-threshold), at 0% benign FP", "modeled escalation trajectories"]]))
 H.append('<h2>8 · How Vyuha compares, and how it meets standards</h2>')
 H.append('<h3>8.1 · Versus existing solutions</h3>')
 H.append('<ul>'

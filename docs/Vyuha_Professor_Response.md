@@ -62,18 +62,39 @@ Where the closer-to-genuine contributions actually are (all measured, not assert
 - **L0 adaptive multi-view de-spacing** — closed the character-spacing gap from ASR **0.83 → 0.00** and
   *generalised to a held-out wider-spacing variant it never trained on*. This generalisation is the
   strongest single novelty claim.
-- **The augmentation-vs-normalisation ablation** — a measured finding that normalisation alone leaves
-  an adaptive attacker at ~1.00 ASR, and it is the adversarial augmentation that closes it to 0.00 at
-  zero benign false positives.
+- **The augmentation-vs-normalisation ablation (C4)** — measured on 150 real in-the-wild seeds:
+  normalisation alone leaves an adaptive attacker at **1.00 [95% CI 0.97–1.00]** ASR (a +0.98 premium
+  over the static per-mutator number), and adversarial augmentation is what closes it to **0.03
+  [0.01–0.08] at 1% benign false positives**.
 - **The selective-cascade division of labour, reproducible on a single free GPU** — the "which layer
   catches what" evidence.
 
 So the honest framing is that **Vyuha is a systems, measurement, and reproducibility contribution, not
-an algorithmic one.** On that basis I fully agree with your suggestion of the **EACL 2027 industry /
-applied track** — those venues explicitly reward relevance, honest evaluation, and reproducibility over
-a new equation, which is exactly this project's profile. I have also softened the executive-summary
-line you underlined ("No single piece is novel") to name the real contributions rather than invite the
-dismissal.
+an algorithmic one.** On that basis I fully agree the **industry / applied track** is the right home —
+those venues explicitly reward relevance, honest evaluation, and reproducibility over a new equation,
+which is exactly this project's profile. (The EACL 2027 industry-track submission window has since
+closed; the paper is drafted and ready, so I plan to submit via ACL Rolling Review / the next suitable
+applied venue — happy to align on the target.) I have also softened the executive-summary line you
+underlined ("No single piece is novel") to name the real contributions rather than invite the dismissal.
+
+## 5. New measured results since your review
+
+Beyond the comments above, four evaluations were added since you reviewed the document — each with
+**95% confidence intervals**, now collected in **§7.4** of the updated Technical Document. They are the
+measured evidence behind the novelty framing:
+
+- **NIST-AI-RMF guard benchmark** (reproducing arXiv:2605.28830): our 0.6B content guard reaches
+  **0.799** recall on the complete-harmful-request axes — level with the benchmark's *best* 4B model
+  (0.840) at ~7× smaller. This is standardised, external evidence that the composed guard is
+  competitive, and it directly addresses the "is it performing well?" question.
+- **Adaptive-attack robustness (C4)**: on 150 real seeds, normalisation alone is beaten by an adaptive
+  attacker (ASR 1.00) but augmentation closes it to **0.03 at 1% FPR** — measured, not asserted.
+- **Multi-turn / Crescendo detection**: session-level **0.71** versus **0.00** for per-message moderation.
+- **Guard ensemble**: an OR union lifts recall 0.551 → 0.715, confirming the benchmark's ensembling
+  recommendation (with an honest false-positive caveat).
+
+The honest framing is unchanged — a systems / measurement / reproducibility contribution — but there is
+now more external, standardised evidence behind it.
 
 ## Document edits made in response
 
@@ -83,3 +104,5 @@ dismissal.
 2. **Executive summary (page 2)** — reworded to: "No single *component algorithm* is new… the
    contributions are the measured composition, the adaptive-robustness ablation, and reproducibility on
    free compute."
+3. **New §7.4 (New measured results)** — a table of the four post-review evaluations above (NIST-RMF,
+   adaptive C4, Crescendo, guard ensemble), each with 95% confidence intervals.

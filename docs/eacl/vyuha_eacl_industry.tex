@@ -132,8 +132,9 @@ headline metric \citep{guard-bench}, reported at a fixed low false-positive rate
 default threshold. \textbf{(2) Confidence intervals.} Every headline proportion is reported with a
 Wilson 95\% interval, which keeps small-$n$ claims honest (a ``perfect'' 1.00 on $n{=}5$ has a wide
 interval). \textbf{(3) Adaptive-attack ablation.} We measure against an attacker that searches over
-compositions of known evasions, and ablate each design choice, rather than reporting a static
-per-mutator number that understates the attack surface. \textbf{(4) Standardised benchmark.} We score
+compositions of known evasions --- both an exhaustive pairwise sweep and a harder genetic
+(deep-chain, crossover) search over the same public transforms --- and ablate each design choice,
+rather than reporting a static per-mutator number that understates the attack surface. \textbf{(4) Standardised benchmark.} We score
 the content guard on the 8 NIST-AI-RMF safety categories following \citet{guard-bench}.
 \textbf{(5) Base-rate and contamination discipline.} Benign controls are drawn from real user
 prompts; benchmark sets are held test-only. All numbers reproduce from public notebooks on a single
@@ -302,7 +303,13 @@ white-box model access.
 but the \emph{measured composition} --- a complete L0--L5 stack shipped as a library, service and CLI ---
 its \emph{reproducibility on a single free GPU}, and an \emph{honest evaluation methodology} (recall-first,
 confidence intervals, an adaptive ablation, and a standardised benchmark) applied to the \emph{deployed
-system} rather than to one component in isolation.
+system} rather than to one component in isolation. Crucially, the composed guards are an interchangeable
+slot, not the contribution: L2 currently binds the strongest small open guards available at writing
+(Qwen3Guard-0.6B, Granite Guardian; 2025--2026 releases), but the cascade, the selective-invocation
+policy, the fixed-FPR calibration, and the measurement harness are model-agnostic and hot-swap whatever
+guard leads next. The delta therefore does not decay when a newer guard ships --- it is the harness and
+the methodology, which the individual detectors of \citet{promptshield}, \citet{pismith} and
+\citet{haste} do not provide.
 
 \section{Conclusion}
 A credible, modern LLM guardrail can be assembled from independent, individually cheap layers entirely
@@ -317,9 +324,11 @@ without the provenance guarantees of capability-based defenses; the AgentDojo ar
 (free-tier quota) and a same-backend comparison to CaMeL's published mitigation needs paid compute.
 The NIST-RMF result is an indicative reconstruction, not the official 79{,}331-sample split, and the
 two toxicity-prefix axes are short fragments a request-focused guard reasonably under-flags. The
-Crescendo result is on modeled score trajectories. Our adaptive attacker is an exhaustive search over
-public transforms; a learned RL red-teamer such as PISmith \citep{pismith} is stronger, and a direct
-head-to-head is future work. Some efficiency and attack-cost figures are
+Crescendo result is on modeled score trajectories. Our adaptive attacker searches over
+public transforms --- both an exhaustive pairwise sweep and a harder genetic (deep-chain, crossover)
+search, which the augmented detector also survives at the reported operating point; a \emph{learned}
+RL red-teamer such as PISmith \citep{pismith} optimises against the model rather than composing fixed
+transforms and is stronger still, so a direct head-to-head remains future work. Some efficiency and attack-cost figures are
 estimates under a measured detection rate, labelled as such. No stack is unbreakable; Vyuha raises
 cost, it does not guarantee safety.
 

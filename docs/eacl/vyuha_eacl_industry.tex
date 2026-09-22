@@ -281,14 +281,33 @@ LLM09 Misinformation & L2/L4 response scoring \\
 \label{tab:gov}
 \end{table}
 
-\section{Related Work and Conclusion}
-Vyuha's obfuscation robustness is shared with strong neural guardrails; its defensible edge is cost,
-reproducibility, composition robustness, and honest measurement. Content guards are stronger on
-semantics (we compose one); CaMeL \citep{camel} offers capability guarantees our black-box L3 only
-approximates; representation-level defenses report lower residual ASR but require model access. We
-conclude that a credible, modern LLM guardrail can be assembled from independent, individually cheap
-layers entirely on free compute, and --- crucially --- measured honestly, with confidence intervals,
-adaptive attacks, and a standardised benchmark, so that its real strengths and limits are visible.
+\section{Related Work}
+\textbf{Detectors and guards.} Deployable prompt-injection detectors such as PromptShield
+\citep{promptshield} fine-tune a single classifier for a low-false-positive regime; open safety guards
+(Qwen3Guard, Granite Guardian, Llama Guard, WildGuard, ShieldGemma) each own different axes, and no one
+model dominates \citep{guard-bench}. Vyuha does not out-build any of these --- it \emph{composes} them
+behind a CPU fast layer and measures the resulting division of labour.
+\textbf{Adaptive attacks and hardening.} Static defenses fall to adaptive attackers:
+\citet{attacker-second} bypass twelve defenses at $>$90\% ASR, and PISmith \citep{pismith} trains an
+RL red-teamer that beats state-of-the-art prompt-injection defenses. Our adaptive-attack ablation is a
+black-box, search-based instance of this discipline; a learned RL attacker is stronger than ours and a
+natural stress test (see Limitations). HASTE \citep{haste} proactively hardens detectors by generating
+evasive prompts; our L5 self-hardening loop is a lightweight, free-compute, signature-based counterpart
+that we do not claim to improve upon.
+\textbf{Agentic and capability defenses.} CaMeL \citep{camel} gives formal capability guarantees our
+black-box L3 only approximates; representation-level defenses report lower residual ASR but require
+white-box model access.
+
+\paragraph{Our position.} Against this landscape Vyuha's contribution is not a new detector or attacker
+but the \emph{measured composition} --- a complete L0--L5 stack shipped as a library, service and CLI ---
+its \emph{reproducibility on a single free GPU}, and an \emph{honest evaluation methodology} (recall-first,
+confidence intervals, an adaptive ablation, and a standardised benchmark) applied to the \emph{deployed
+system} rather than to one component in isolation.
+
+\section{Conclusion}
+A credible, modern LLM guardrail can be assembled from independent, individually cheap layers entirely
+on free compute, and --- crucially --- measured honestly, with confidence intervals, adaptive attacks,
+and a standardised benchmark, so that its real strengths and limits are visible rather than asserted.
 
 \section*{Limitations}
 The surface detector (L1) does not and should not catch harmful-topic or semantic attacks; those
@@ -298,7 +317,9 @@ without the provenance guarantees of capability-based defenses; the AgentDojo ar
 (free-tier quota) and a same-backend comparison to CaMeL's published mitigation needs paid compute.
 The NIST-RMF result is an indicative reconstruction, not the official 79{,}331-sample split, and the
 two toxicity-prefix axes are short fragments a request-focused guard reasonably under-flags. The
-Crescendo result is on modeled score trajectories. Some efficiency and attack-cost figures are
+Crescendo result is on modeled score trajectories. Our adaptive attacker is an exhaustive search over
+public transforms; a learned RL red-teamer such as PISmith \citep{pismith} is stronger, and a direct
+head-to-head is future work. Some efficiency and attack-cost figures are
 estimates under a measured detection rate, labelled as such. No stack is unbreakable; Vyuha raises
 cost, it does not guarantee safety.
 
@@ -315,6 +336,9 @@ oversight and continuous red-teaming.
 \bibitem[Russinovich et~al.(2024)]{crescendo} Mark Russinovich, Ahmed Salem, and Ronen Eldan. 2024. Great, Now Write an Article About That: The Crescendo Multi-Turn LLM Jailbreak Attack. \emph{arXiv:2404.01833} (USENIX Security 2025).
 \bibitem[Harsh et~al.(2026)]{guard-bench} Reetu Raj Harsh, Bhaskarjit Sarmah, and Stefano Pasquali. 2026. Benchmarking Open-Source Safety Guard Models: A Comprehensive Evaluation. \emph{arXiv:2605.28830} (ICLR 2026 Workshop).
 \bibitem[Debenedetti et~al.(2025)]{camel} Edoardo Debenedetti, Ilia Shumailov, Tianqi Fan, Jamie Hayes, Nicholas Carlini, Daniel Fabian, Christoph Kern, Chongyang Shi, Andreas Terzis, and Florian Tram\`er. 2025. Defeating Prompt Injections by Design. \emph{arXiv:2503.18813}.
+\bibitem[Jacob et~al.(2025)]{promptshield} Dennis Jacob et~al. 2025. PromptShield: Deployable Detection for Prompt Injection Attacks. \emph{arXiv:2501.15145}; ACM CODASPY 2025.
+\bibitem[PISmith(2026)]{pismith} PISmith: Reinforcement Learning-based Red Teaming for Prompt Injection Defenses. 2026. \emph{arXiv:2603.13026}.
+\bibitem[HASTE(2026)]{haste} Proactive Hardening of LLM Defenses with HASTE. 2026. \emph{arXiv:2601.19051}; NDSS.
 \end{thebibliography}
 
 \end{document}

@@ -36,6 +36,11 @@ ul {{ margin:6px 0 6px 0; padding-left: 18px; }} li {{ margin:4px 0; }}
 """
 
 raw = open("docs/Vyuha_Professor_Response.md", encoding="utf-8").read()
+
+# Passages OMITTED from the shared PDF only (the source .md keeps them, for the repo record).
+raw = re.sub(r"I will be direct, because overclaiming novelty is the fastest way to lose a reviewer\.\s*",
+             "", raw, flags=re.S)
+raw = re.sub(r"\s*On that basis I fully agree the.*?invite the dismissal\.", "", raw, flags=re.S)
 # Split off the top-level "# title" -> render it as a styled cover; convert the rest as body.
 m = re.match(r"#\s+(.+?)\n(.*)", raw, flags=re.S)
 title = m.group(1).strip() if m else "Response to Review"

@@ -22,7 +22,16 @@ def build_vyuha(config=None, fit_data=None):
     'deberta-injection'). fit_data=(X, y) overrides the default training corpus (used by tests /
     offline runs); when None, the pipeline is fit on Vyuha's assembled training split.
     """
-    config = config or {}
+    config = dict(config or {})
+    # env fallback: lets a runner (e.g. the P16 notebook) set defense config without PIArena CLI plumbing
+    import os, json as _json
+    env_cfg = os.environ.get("VYUHA_DEFENSE_CONFIG")
+    if env_cfg:
+        try:
+            for k, v in _json.loads(env_cfg).items():
+                config.setdefault(k, v)
+        except Exception:
+            pass
     key = (config.get("block_at", 0.80), config.get("allow_below", 0.20),
            bool(config.get("use_guard", False)), config.get("guard_preset", "qwen3guard"),
            id(fit_data))

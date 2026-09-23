@@ -112,7 +112,14 @@ class OpenGuard:
         # llm_guard: ask the guard, read first token verdict
         import torch
         scores = []
-        for t in texts:
+        _it = texts
+        if len(texts) > 20:
+            try:
+                from tqdm.auto import tqdm
+                _it = tqdm(texts, desc=f"{self.name} scoring", unit="prompt")
+            except Exception:
+                pass
+        for t in _it:
             try:
                 text = self.tok.apply_chat_template([{"role": "user", "content": t}],
                                                     add_generation_prompt=True, tokenize=False)
@@ -143,7 +150,14 @@ class OpenGuard:
             return self.proba(responses, batch_size=batch_size)
         import torch
         scores = []
-        for p, r in zip(prompts, responses):
+        _pairs = list(zip(prompts, responses))
+        if len(_pairs) > 20:
+            try:
+                from tqdm.auto import tqdm
+                _pairs = tqdm(_pairs, desc=f"{self.name} scoring", unit="pair")
+            except Exception:
+                pass
+        for p, r in _pairs:
             msgs = [{"role": "user", "content": str(p)}, {"role": "assistant", "content": str(r)}]
             try:
                 text = self.tok.apply_chat_template(msgs, add_generation_prompt=True, tokenize=False)

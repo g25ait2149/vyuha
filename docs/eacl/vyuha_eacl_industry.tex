@@ -152,7 +152,8 @@ Table~\ref{tab:main} summarises the measured results; all proportions carry 95\%
 Obfuscation (L1) & recall & \textbf{1.00} incl.\ held-out \\
  & latency & $\sim$8\,ms CPU \\
 Adaptive (L1) & ASR, L0 only & 1.00 [0.97,1.00] \\
- & ASR, L0+aug & \textbf{0.03} [0.01,0.08] \\
+ & ASR, L0+aug (pairwise) & \textbf{0.03} [0.01,0.08] \\
+ & ASR, L0+aug (genetic) & \textbf{0.07} [0.04,0.12] \\
 Semantic (L2) & PAIR recall & \textbf{0.90} (L1: 0.07) \\
 NIST-RMF (L2) & recall, req.\ axes & \textbf{0.799} ($\approx$4B: 0.84) \\
  & benign FPR & 0.064 \\
@@ -180,15 +181,17 @@ character-spacing gap from ASR 0.83 to 0.00 and generalises to the held-out vari
 \begin{axis}[ybar, width=\columnwidth, height=4.2cm, font=\scriptsize, bar width=5pt,
   ymin=0, ymax=1.08, ylabel={ASR}, symbolic x coords={vanilla,L0 only,aug only,L0+aug},
   xtick=data, x tick label style={rotate=12,anchor=east}, ymajorgrids, tick align=outside,
-  enlarge x limits=0.18, legend style={at={(0.5,1.13)},anchor=south,legend columns=2,draw=none}]
+  enlarge x limits=0.18, legend style={at={(0.5,1.13)},anchor=south,legend columns=3,draw=none}]
 \addplot coordinates {(vanilla,1.00)(L0 only,0.02)(aug only,0.03)(L0+aug,0.01)};
 \addplot coordinates {(vanilla,1.00)(L0 only,1.00)(aug only,0.25)(L0+aug,0.03)};
-\legend{static,adaptive}
+\addplot coordinates {(vanilla,1.00)(L0 only,1.00)(aug only,0.92)(L0+aug,0.07)};
+\legend{static,pairwise,genetic}
 \end{axis}
 \end{tikzpicture}
-\caption{Adaptive-attack ablation (C4), 150 in-the-wild seeds. L0 normalisation alone cuts
-\emph{static} ASR to 0.02 but the adaptive attacker still reaches 1.00; adversarial augmentation is
-the load-bearing fix, closing adaptive ASR to 0.03 at 1\% FPR.}
+\caption{Adaptive-attack ablation (C4), 150 in-the-wild seeds. L0 alone cuts \emph{static} ASR to 0.02
+but both adaptive attackers still reach 1.00. Only the full detector (L0+aug) holds --- 0.03 [0.01,0.08]
+pairwise and 0.07 [0.04,0.12] under a harder genetic search --- while augmentation \emph{alone}
+collapses to 0.92 under the genetic attacker, showing L0 and augmentation are both load-bearing.}
 \label{fig:adaptive}
 \end{figure}
 
@@ -197,8 +200,12 @@ single/paired evasions per seed) on 150 real in-the-wild jailbreak seeds: a bare
 evaded (1.00). Normalisation alone drops the \emph{static} per-mutator ASR to 0.02 yet the adaptive
 attacker still reaches 1.00 [0.97,1.00] --- a $+0.98$ ``attacker-moves-second'' premium the static
 number hides. Adversarial augmentation is the load-bearing fix: the full detector holds adaptive ASR
-to 0.03 [0.01,0.08] at 1\% benign FPR. The two are complementary --- augmentation alone leaves 0.25
-[0.19,0.33], a non-overlapping interval --- so both design choices earn their place.
+to 0.03 [0.01,0.08] at 1\% benign FPR. A harder \emph{genetic} attacker (deep transform chains with
+crossover, $\sim$110 queries/seed) confirms this rather than breaking it --- the full detector holds at
+0.07 [0.04,0.12], statistically indistinguishable from the pairwise 0.03. The same genetic search,
+however, drives \emph{augmentation-alone} from 0.25 to 0.92 [0.86,0.95]: L0 normalisation is far more
+load-bearing than the pairwise ablation implied, and neither component is sufficient on its own --- both
+earn their place.
 
 \paragraph{Division of labour (L1 vs L2).} On 103 real PAIR jailbreaks the surface detector flags
 6.8\% (no surface tell) while the composed content guard flags 90.3\% at 4.8\% over-refusal ---
@@ -329,7 +336,7 @@ The NIST-RMF result is an indicative reconstruction, not the official 79{,}331-s
 two toxicity-prefix axes are short fragments a request-focused guard reasonably under-flags. The
 Crescendo result is on modeled score trajectories. Our adaptive attacker searches over
 public transforms --- both an exhaustive pairwise sweep and a harder genetic (deep-chain, crossover)
-search, which the augmented detector also survives at the reported operating point. To place Vyuha in
+search, which the full detector also survives (0.07 [0.04,0.12] genetic vs 0.03 pairwise). To place Vyuha in
 a shared harness we release it as a PIArena \citep{piarena} defense plug-in; the static and
 search-based head-to-head (Direct, Combined, TAP, PAIR) is single-GPU runnable, whereas the strongest
 cited attacker --- the \emph{learned} RL red-teamer PISmith \citep{pismith}, which optimises against

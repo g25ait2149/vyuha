@@ -494,8 +494,10 @@ H.append(table(
     ["Axis / claim", "Result (95% CI)", "Tested on"],
     [["Adaptive robustness (C4)", "L0-only: static ASR 0.02 but adaptive <b>1.00</b> [0.97&ndash;1.00] "
       "(<b>+0.98</b> &ldquo;attacker-moves-second&rdquo; premium); full RJD-v2 (L0+aug) adaptive <b>0.03</b> "
-      "[0.01&ndash;0.08] at 1% FPR; augmentation alone 0.25 [0.19&ndash;0.33] &mdash; L0 and augmentation are "
-      "complementary, both earn their place", "150 in-the-wild seeds, 500 benign"],
+      "[0.01&ndash;0.08] at 1% FPR, and <b>0.07</b> [0.04&ndash;0.12] under a harder <b>genetic</b> attacker "
+      "(deep chains + crossover, ~110 queries/seed) &mdash; it holds. Augmentation alone: 0.25 pairwise but "
+      "<b>0.92</b> [0.86&ndash;0.95] genetic &mdash; so L0 is heavily load-bearing and neither component is "
+      "sufficient alone; both earn their place", "150 in-the-wild seeds, 500 benign"],
      ["NIST-AI-RMF guard benchmark", "Qwen3Guard-0.6B recall <b>0.799</b> on the 6 complete-harmful-request "
       "axes &mdash; level with the benchmark&rsquo;s best 4B model (0.840) at &asymp;7&times; smaller &mdash; vs "
       "0.133 on the 2 toxicity-prefix axes; overall 0.551 [0.52&ndash;0.58] at 6.4% benign FPR",

@@ -78,8 +78,11 @@ Recall is reported at a fixed 1% FPR.
   searching 101 single/paired evasions per seed, L0 normalization alone drops **static** ASR to 0.02
   but **adaptive** ASR stays **1.00 [0.97, 1.00]** (the attacker-moves-second premium); adversarial
   augmentation closes it - RJD-v2 holds adaptive ASR to **0.03 [0.01, 0.08]** at **1%** benign FPR.
-  Augmentation alone leaves **0.25 [0.19, 0.33]** (non-overlapping with 0.03), so L0 and augmentation
-  are complementary - both earn their place.
+  A harder **genetic** attacker (deep transform chains + crossover, ~110 queries/seed) confirms this:
+  the full detector holds at **0.07 [0.04, 0.12]** (statistically indistinguishable from pairwise 0.03),
+  while **augmentation alone collapses to 0.92 [0.86, 0.95]** under it (vs 0.25 pairwise) - L0
+  normalization is far more load-bearing than pairwise implied, and neither component is sufficient
+  alone. Both earn their place.
 - **L1 ensemble (Vyuha-Fast) - NOT the default:** adding a semantic + signature signal raises
   over-refusal to **FRR 0.175** for negligible gain (its templates false-fire on benign text), so
   RJD-v2 ships as L1 and the ensemble is optional.

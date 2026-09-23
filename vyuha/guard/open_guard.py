@@ -47,11 +47,15 @@ GUARD_PRESETS = {
 
 class OpenGuard:
     def __init__(self, model_id="protectai/deberta-v3-base-prompt-injection-v2",
-                 mode="classifier", device=None, unsafe_label_prefixes=("INJ", "JAIL", "LABEL_1", "UNSAFE")):
+                 mode="classifier", device=None, unsafe_label_prefixes=("INJ", "JAIL", "LABEL_1", "UNSAFE"),
+                 load_in_4bit=True):
         self.model_id = model_id
         self.mode = mode
         self.device = device
         self.unsafe_prefixes = unsafe_label_prefixes
+        # 4-bit quantise llm_guard weights on GPU so a 3B guard (e.g. Granite) fits a 16GB T4 without
+        # the silent OOM that kills the kernel mid-scoring. No effect on the classifier path.
+        self.load_in_4bit = load_in_4bit
         self.name = model_id.split("/")[-1]
         self._ready = False
 
@@ -91,9 +95,18 @@ class OpenGuard:
                                  truncation=True, max_length=512, device=dev)
         else:  # llm_guard
             self.tok = AutoTokenizer.from_pretrained(self.model_id)
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_id, torch_dtype="auto",
-                device_map="auto" if dev >= 0 else None)
+            kw = dict(torch_dtype="auto", device_map="auto" if dev >= 0 else None)
+            if dev >= 0 and self.load_in_4bit:   # quantise on GPU to fit a 3B guard on a 16GB T4
+                try:
+                    import bitsandbytes  # noqa: F401 - presence check
+                    from transformers import BitsAndBytesConfig
+                    kw["quantization_config"] = BitsAndBytesConfig(
+                        load_in_4bit=True, bnb_4bit_quant_type="nf4",
+                        bnb_4bit_use_double_quant=True, bnb_4bit_compute_dtype=torch.float16)
+                    kw.pop("torch_dtype", None)
+                except Exception as e:
+                    print(f"[OpenGuard] 4-bit unavailable ({e}); loading {self.name} in fp16")
+            self.model = AutoModelForCausalLM.from_pretrained(self.model_id, **kw)
         self._ready = True
         return self
 

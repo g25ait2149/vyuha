@@ -161,6 +161,85 @@ class OpenGuard:
                 scores.append(_verdict_unsafe(verdict))  # Qwen 'Unsafe', Granite 'Yes', Llama 'unsafe'
         return np.array(scores)
 
+    def _verdict_token_ids(self):
+        """Cache the vocab ids whose first sub-token is an unsafe/safe verdict word, for THIS tokenizer.
+        Built from the same keyword lists the hard parser uses, in the case/space forms a guard emits."""
+        if getattr(self, "_vtoks", None) is not None:
+            return self._vtoks
+        tok = self.tok
+
+        def ids_for(words):
+            s = set()
+            for w in words:
+                for form in (w, w.capitalize(), w.upper(), " " + w, " " + w.capitalize()):
+                    try:
+                        enc = tok(form, add_special_tokens=False).input_ids
+                    except Exception:
+                        enc = []
+                    if enc:
+                        s.add(int(enc[0]))
+            return s
+        self._vtoks = (ids_for(_UNSAFE_FIRST), ids_for(_SAFE_FIRST))
+        return self._vtoks
+
+    def proba_soft(self, texts, batch_size=8, max_new_tokens=8, mass_thresh=0.30):
+        """Continuous P(unsafe) in [0,1] from the guard's VERDICT-token probabilities (not a hard 0/1),
+        so the scores can be threshold-calibrated to a target FPR (the hard verdicts cannot).
+
+        For each prompt we take the first generated step where the combined probability mass on the
+        unsafe+safe verdict tokens exceeds `mass_thresh` (this skips any <think> preamble and lands on
+        the actual verdict), and return p_unsafe / (p_unsafe + p_safe) there. Invariant, checked on-GPU
+        by the P15 gate: (proba_soft >= 0.5) agrees with the greedy hard verdict from proba(). Falls
+        back to the hard label when no verdict token is found; classifier mode already yields a
+        continuous score, so it defers to proba()."""
+        if not self._ready:
+            self.load()
+        if self.mode == "classifier":
+            return self.proba(texts, batch_size=batch_size)
+        import torch
+        tok = self.tok
+        unsafe_ids, safe_ids = self._verdict_token_ids()
+        u_idx = torch.tensor(sorted(unsafe_ids), device=self.model.device) if unsafe_ids else None
+        s_idx = torch.tensor(sorted(safe_ids), device=self.model.device) if safe_ids else None
+        prompts = []
+        for t in texts:
+            try:
+                prompts.append(tok.apply_chat_template([{"role": "user", "content": t}],
+                                                       add_generation_prompt=True, tokenize=False))
+            except Exception:
+                prompts.append(t)
+        idxs = range(0, len(prompts), batch_size)
+        if len(prompts) > batch_size:
+            try:
+                from tqdm.auto import tqdm
+                idxs = tqdm(list(idxs), desc=f"{self.name} soft-scoring", unit="batch")
+            except Exception:
+                pass
+        out = []
+        for i in idxs:
+            batch = prompts[i:i + batch_size]
+            enc = tok(batch, return_tensors="pt", padding=True, truncation=True,
+                      max_length=1024).to(self.model.device)
+            with torch.no_grad():
+                gen = self.model.generate(**enc, max_new_tokens=max_new_tokens, do_sample=False,
+                                          pad_token_id=tok.pad_token_id,
+                                          return_dict_in_generate=True, output_scores=True)
+            steps = gen.scores                        # tuple[gen_len] of [batch, vocab] logits
+            seqs = gen.sequences[:, enc["input_ids"].shape[1]:]
+            for b in range(len(batch)):
+                p_unsafe = None
+                for step in steps:
+                    probs = torch.softmax(step[b].float(), dim=-1)
+                    u = probs[u_idx].sum() if u_idx is not None else probs.new_zeros(())
+                    s = probs[s_idx].sum() if s_idx is not None else probs.new_zeros(())
+                    if float(u + s) >= mass_thresh:   # verdict step reached
+                        p_unsafe = float(u / (u + s + 1e-9))
+                        break
+                if p_unsafe is None:                   # no clear verdict token -> hard fallback
+                    p_unsafe = float(_verdict_unsafe(tok.decode(seqs[b], skip_special_tokens=True)))
+                out.append(p_unsafe)
+        return np.array(out)
+
     def proba_response(self, prompts, responses, batch_size=16):
         """P(unsafe) for each ASSISTANT RESPONSE given its prompt - the correct way to moderate
         an output. An llm_guard (e.g. Qwen3Guard) classifies the assistant turn of the

@@ -31,6 +31,32 @@ def _verdict_unsafe(verdict):
         return 0.0
     return 1.0 if ("unsafe" in v or "harmful" in v) else 0.0
 
+
+_QWEN_LABEL = re.compile(r"safety\s*[:=]\s*(safe|unsafe|controversial)", re.I)
+
+
+def _verdict_category(verdict):
+    """3-way category of a guard's verdict for the correctness gate: 'unsafe' / 'safe' /
+    'controversial' / 'other'. Qwen3Guard emits 'Safety: (Safe|Unsafe|Controversial)'; Granite
+    'Yes/No'; Llama-Guard 'safe/unsafe'. 'controversial' is Qwen's middle tier - the hard verdict
+    collapses it to safe, but the continuous proba_soft grades it, so the gate excludes it rather
+    than force a binary match that can't hold."""
+    v = re.sub(r"<think>.*?</think>", " ", str(verdict), flags=re.S | re.I)
+    m = _QWEN_LABEL.search(v)
+    if m:
+        return m.group(1).lower()
+    w = v.strip().lower().split()
+    first = w[0].strip(".,:;\"'*`-") if w else ""
+    if first in _UNSAFE_FIRST:
+        return "unsafe"
+    if first in _SAFE_FIRST:
+        return "safe"
+    if "controversial" in v.lower():
+        return "controversial"
+    if "unsafe" in v.lower() or "harmful" in v.lower():
+        return "unsafe"
+    return "other"
+
 # Recommended NON-OVERLAPPING guard members for the L2 ensemble (each brings a different strength).
 # Model ids verified on the Hugging Face Hub (Aug 2026); pin an exact revision before a real run.
 GUARD_PRESETS = {
@@ -129,8 +155,13 @@ class OpenGuard:
             out = self.pipe(texts, batch_size=batch_size)
             # score is confidence of the predicted label; convert to P(unsafe)
             return np.array([r["score"] if self._is_unsafe(r["label"]) else 1 - r["score"] for r in out])
-        # llm_guard: ask the guard, read the verdict tokens. BATCHED - one generate() per prompt is the
-        # throughput killer (~1.6k sequential calls = hours); batching with left-padding is 10-30x faster.
+        # llm_guard: generate the verdict and map it to 0/1
+        return np.array([_verdict_unsafe(v) for v in self._decode_verdicts(texts, batch_size)])
+
+    def _decode_verdicts(self, texts, batch_size=16, max_new_tokens=16):
+        """Batched greedy generation -> list of decoded verdict strings. One generate() per prompt is
+        the throughput killer (~1.6k sequential calls = hours); batching with left-padding is 10-30x
+        faster. Shared by proba() (hard label) and verdict_categories() (3-way label)."""
         import torch
         tok = self.tok
         prompts = []
@@ -147,19 +178,28 @@ class OpenGuard:
                 idxs = tqdm(list(idxs), desc=f"{self.name} scoring", unit="batch")
             except Exception:
                 pass
-        scores = []
+        verdicts = []
         for i in idxs:
             batch = prompts[i:i + batch_size]
             enc = tok(batch, return_tensors="pt", padding=True, truncation=True,
                       max_length=1024).to(self.model.device)
             with torch.no_grad():
-                gen = self.model.generate(**enc, max_new_tokens=16, do_sample=False,
+                gen = self.model.generate(**enc, max_new_tokens=max_new_tokens, do_sample=False,
                                           pad_token_id=tok.pad_token_id)
             new = gen[:, enc["input_ids"].shape[1]:]     # left-padded -> new tokens align per row
             for row in new:
-                verdict = tok.decode(row, skip_special_tokens=True)
-                scores.append(_verdict_unsafe(verdict))  # Qwen 'Unsafe', Granite 'Yes', Llama 'unsafe'
-        return np.array(scores)
+                verdicts.append(tok.decode(row, skip_special_tokens=True))
+        return verdicts
+
+    def verdict_categories(self, texts, batch_size=16):
+        """Per-prompt 3-way verdict category ('unsafe'/'safe'/'controversial'/'other'). Used by the
+        P15 correctness gate to exclude Controversial cases (which the continuous score grades and the
+        binary hard verdict collapses, so they can't and shouldn't match at 0.5)."""
+        if not self._ready:
+            self.load()
+        if self.mode == "classifier":
+            return ["unsafe" if p >= 0.5 else "safe" for p in self.proba(texts, batch_size=batch_size)]
+        return [_verdict_category(v) for v in self._decode_verdicts(texts, batch_size)]
 
     def _verdict_token_ids(self):
         """Cache the vocab ids whose first sub-token is an unsafe/safe verdict word, for THIS tokenizer.

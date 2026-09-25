@@ -42,7 +42,7 @@ adaptive-attack ablation, a standardised-benchmark reconstruction, and base-rate
 confidence intervals: the CPU fast layer matches a GPU neural guard's obfuscation robustness at
 $\sim$8\,ms; against an adaptive attacker, normalisation alone leaves ASR at 1.00 while adversarial
 augmentation closes it to 0.03 at 1\% false-positive rate; on a NIST-AI-RMF guard benchmark our
-0.6B content guard reaches 0.799 recall on complete-harmful-request axes --- level with a 7$\times$
+0.6B content guard reaches 0.886 recall on complete-harmful-request axes --- on par with a 7$\times$
 larger model; and a session-level monitor catches 71\% of multi-turn (Crescendo) escalations a
 per-message moderator catches 0\% of. We are explicit throughout about where stronger
 (white-box, formally verified, or paid-compute) work exists.
@@ -155,8 +155,8 @@ Adaptive (L1) & ASR, L0 only & 1.00 [0.97,1.00] \\
  & ASR, L0+aug (pairwise) & \textbf{0.03} [0.01,0.08] \\
  & ASR, L0+aug (genetic) & \textbf{0.07} [0.04,0.12] \\
 Semantic (L2) & PAIR recall & \textbf{0.90} (L1: 0.07) \\
-NIST-RMF (L2) & recall, req.\ axes & \textbf{0.799} ($\approx$4B: 0.84) \\
- & benign FPR & 0.064 \\
+NIST-RMF (L2) & recall, req.\ axes & \textbf{0.886} ($\approx$4B: 0.84) \\
+ & benign FPR & 0.071 \\
 Agent inj.\ (L3) & AgentDojo ASR & 1.00\,$\rightarrow$\,\textbf{0.00} \\
 MCP poison (L3) & detection & \textbf{1.00} [0.87,1.00] \\
 Multi-turn (L5) & session detect & \textbf{0.71} [0.65,0.77] \\
@@ -219,32 +219,35 @@ semantics are, by design, L2's job, not L1's.
   xticklabels={self-harm,violence,threats,sexual,hate,health,profanity,harass.},
   x tick label style={rotate=35,anchor=east}, ymajorgrids, tick align=outside,
   legend style={at={(0.5,1.15)},anchor=south,legend columns=2,draw=none,font=\tiny}]
-\addplot[fill=blue!55,draw=blue!55] coordinates {(1,1.00)(2,0.927)(3,0.900)(4,0.855)(5,0.680)(6,0.609)};
-\addplot[fill=orange!75,draw=orange!75] coordinates {(7,0.193)(8,0.073)};
+\addplot[fill=blue!55,draw=blue!55] coordinates {(1,1.00)(2,0.980)(3,0.950)(4,0.916)(5,0.833)(6,0.696)};
+\addplot[fill=orange!75,draw=orange!75] coordinates {(7,0.307)(8,0.200)};
 \draw[dashed] (axis cs:0.4,0.84) -- (axis cs:8.6,0.84);
 \node[font=\tiny] at (axis cs:2.1,0.90) {4B ref 0.84};
 \legend{BeaverTails (requests),RTP (prefixes)}
 \end{axis}
 \end{tikzpicture}
 \caption{NIST-RMF per-category recall (Qwen3Guard-0.6B). On complete-harmful-request axes
-(BeaverTails) it sits near the benchmark's 4B leader (0.84, dashed); the two toxicity-prefix axes
-(RealToxicityPrompts) are short fragments a request-focused guard flags less.}
+(BeaverTails) it meets or exceeds the benchmark's 4B leader (0.84, dashed); the two toxicity-prefix
+axes (RealToxicityPrompts) are short fragments a request-focused guard flags less.}
 \label{fig:nist}
 \end{figure}
 
 \paragraph{NIST-AI-RMF guard benchmark (L2).} Figure~\ref{fig:nist} shows the per-category split. Scoring the 0.6B content guard on the 8 NIST-AI-RMF
 categories \citep{guard-bench} (a reconstruction from BeaverTails and RealToxicityPrompts;
-807 unsafe / 800 benign; not the official split): recall is 0.799 on the six
-complete-harmful-request axes --- level with the benchmark's best model (Qwen Guard 4B, 0.840)
-despite being $\sim$7$\times$ smaller --- and 0.133 on the two toxicity-prefix axes (short fragments a
-safety guard reasonably flags less), for an aggregate 0.551 [0.52,0.58] at 6.4\% benign FPR. A small
-guard is competitive with a much larger one on complete harmful requests; the per-category spread is
-why L2 composes guards. Composing a second, non-overlapping guard (Granite Guardian) in an OR union
-confirms the benchmark's ensembling recommendation --- recall rises across the board (overall
-$0.551\!\to\!0.715$; the weak toxicity axes $0.133\!\to\!0.373$) --- but the gain is not free: the
-naive union also raises benign FPR from 0.064 to 0.48, because the second guard over-flags this benign
-set at its default operating point. A deployable union must therefore run at per-member thresholds
-(fixed-FPR calibration), not a raw OR.
+807 unsafe / 800 benign; not the official split): scoring the guard's continuous $P(\text{unsafe})$,
+recall is 0.886 on the six complete-harmful-request axes at 7.1\% benign FPR --- on par with the
+benchmark's best model (Qwen Guard 4B, 0.840) despite being $\sim$7$\times$ smaller --- and 0.253 on
+the two toxicity-prefix axes (short fragments a request-focused guard flags less), for an aggregate
+0.651 [0.62,0.68]. A small guard is competitive with a much larger one on complete harmful requests;
+the per-category spread is why L2 composes guards. The complementary guard (Granite Guardian) has
+higher recall (0.931 on the six axes) but over-flags this benign set badly (63.8\% FPR), so it is not
+deployable alone --- and a raw OR at threshold 0.5 inherits that (recall 0.832 at 0.64 FPR). Calibrated
+instead on each guard's continuous score to a fixed per-member FPR, the union \emph{does} confirm the
+benchmark's ensembling recommendation where it matters: at a strict $\sim$2\% union FPR it lifts recall
+to 0.261 versus 0.097 for the single guard (a $2.7\times$ gain), and 0.413 vs.\ 0.169 at $\sim$4\%,
+the advantage narrowing as FPR rises and vanishing by $\sim$16\%. The lesson is operational: a
+deployable union must run on calibrated continuous scores at per-member thresholds, never a raw OR, and
+its value is concentrated at the low-FPR operating point production actually uses.
 
 \paragraph{Agent and multi-turn defense (L3, L5).} On AgentDojo (banking, \emph{important\_instructions}),
 L3 drives injection ASR to 0.00 on both a weak and a strong open agent; injection-under-obfuscation

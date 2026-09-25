@@ -72,16 +72,17 @@ Recall is reported at a fixed 1% FPR.
   RJD-v2 ships as L1 and the ensemble is optional.
 - **L2 content guard (Qwen3Guard-0.6B):** carries harmful-topic (**XSTest unsafe 0.79**) and semantic
   (**PAIR 0.90**) coverage at **4.8%** over-refusal - the axes a surface L1 cannot.
-- **NIST-AI-RMF guard benchmark (arXiv:2605.28830 reconstruction; 807 unsafe / 800 benign):** the L2
-  content guard (Qwen3Guard-0.6B) reaches recall **0.799** on the 6 complete-harmful-request axes
-  (BeaverTails) - level with the paper's best 4B model (**0.840**) at ≈7x smaller - and 0.133 on the
-  2 toxicity-prefix axes (RealToxicityPrompts); overall **0.551 [0.52-0.58]** at **6.4%** benign FPR.
-  Recall is the critical metric; the per-category spread motivates the L2 guard ensemble. **Ensemble
-  (measured):** an OR union with a non-overlapping guard (Granite Guardian) lifts recall **0.551 ->
-  0.715** (weak toxicity axes **0.133 -> 0.373**), confirming the benchmark's ensembling recommendation
-  - but the naive union also raises benign FPR **0.064 -> 0.48** (the second guard over-flags this set
-  at its default threshold), so a deployable union must run at per-member thresholds (`fit_thresholds`),
-  not a raw OR. The recall gain is real but not free.
+- **NIST-AI-RMF guard benchmark (arXiv:2605.28830 reconstruction; 807 unsafe / 800 benign):** scoring the
+  L2 content guard (Qwen3Guard-0.6B) on its continuous P(unsafe), recall is **0.886** on the 6
+  complete-harmful-request axes (BeaverTails) at **7.1%** benign FPR - on par with the paper's best 4B
+  model (**0.840**) at ≈7x smaller - and **0.253** on the 2 toxicity-prefix axes (RealToxicityPrompts);
+  overall **0.651 [0.62-0.68]**. Recall is the critical metric; the per-category spread motivates the L2
+  guard ensemble. **Ensemble (measured):** the complementary Granite Guardian has higher recall (**0.931**
+  on the 6 axes) but over-flags benign badly (**63.8%** FPR), so a raw OR at 0.5 is undeployable (0.832
+  recall at 0.64 FPR). Calibrated on continuous scores to a per-member FPR, the union beats the single
+  guard where it matters: recall **0.261 vs 0.097** at ≈2% union FPR (2.7x), **0.413 vs 0.169** at ≈4%,
+  the gain narrowing as FPR rises and vanishing by ≈16%. Ensembling helps - but only calibrated, at the
+  low-FPR operating point production uses (`fit_thresholds`), never a raw OR.
 - **L2 tuned guard (QLoRA, 1.5B):** cross-benchmark ROC-AUC **0.72-0.92** on unseen jailbreaks at FRR
   0.03-0.06, but **jailbreak-only** (inert on harmful-topic XSTest 0.00 and semantic PAIR 0.03).
 - **Semantic attacks (PAIR, n=103):** L1 flags **6.8%**, tuned guard 2.9%, content guard **90.3%**;

@@ -498,13 +498,15 @@ H.append(table(
       "(deep chains + crossover, ~110 queries/seed) &mdash; it holds. Augmentation alone: 0.25 pairwise but "
       "<b>0.92</b> [0.86&ndash;0.95] genetic &mdash; so L0 is heavily load-bearing and neither component is "
       "sufficient alone; both earn their place", "150 in-the-wild seeds, 500 benign"],
-     ["NIST-AI-RMF guard benchmark", "Qwen3Guard-0.6B recall <b>0.799</b> on the 6 complete-harmful-request "
-      "axes &mdash; level with the benchmark&rsquo;s best 4B model (0.840) at &asymp;7&times; smaller &mdash; vs "
-      "0.133 on the 2 toxicity-prefix axes; overall 0.551 [0.52&ndash;0.58] at 6.4% benign FPR",
-      "807 unsafe / 800 benign (arXiv:2605.28830 reconstruction)"],
-     ["Guard ensemble (+ Granite Guardian)", "an OR union lifts recall <b>0.551&rarr;0.715</b> (weak axes "
-      "0.133&rarr;0.373) &mdash; confirming the benchmark&rsquo;s ensembling recommendation &mdash; but raises "
-      "benign FPR 0.064&rarr;0.48, so a deployable union must run at per-member thresholds", "same NIST-RMF set"],
+     ["NIST-AI-RMF guard benchmark", "Qwen3Guard-0.6B recall <b>0.886</b> on the 6 complete-harmful-request "
+      "axes at 7.1% benign FPR &mdash; on par with the benchmark&rsquo;s best 4B model (0.840) at &asymp;7&times; "
+      "smaller &mdash; vs 0.253 on the 2 toxicity-prefix axes; overall 0.651 [0.62&ndash;0.68] (scored on the "
+      "guard&rsquo;s continuous P(unsafe))", "807 unsafe / 800 benign (arXiv:2605.28830 reconstruction)"],
+     ["Guard ensemble (+ Granite Guardian)", "Granite has higher recall (0.931 on the 6 axes) but over-flags "
+      "benign badly (63.8% FPR), so a raw OR at 0.5 is undeployable (0.832 recall at 0.64 FPR). <b>Calibrated</b> "
+      "on continuous scores to a per-member FPR, the union beats the single guard where it matters &mdash; recall "
+      "<b>0.261 vs 0.097</b> at &asymp;2% union FPR (2.7&times;), 0.413 vs 0.169 at &asymp;4% &mdash; the gain "
+      "narrowing as FPR rises. Ensembling helps, but only calibrated, at the low-FPR production point", "same NIST-RMF set"],
      ["MCP tool-poisoning (L3)", "hidden-instruction detection <b>1.00</b> [0.87&ndash;1.00] at <b>0</b> false "
       "positives", "25 poisoned / 27 benign tool definitions"],
      ["Multi-turn / Crescendo (L5)", "session-level detection <b>0.71</b> [0.65&ndash;0.77] versus <b>0.00</b> "

@@ -46,10 +46,14 @@ cp /path/to/vyuha-repo/integrations/piarena/defense_vyuha.py piarena/defenses/
 ```
 
 ## Run the head-to-head (single-GPU / free-tier feasible)
+**Use a judge-free dataset.** PIArena's `squad_v2`/RAG sets evaluate ASR with an `llm_judge` (needs an
+OpenAI/Anthropic/Google API key). The `*_knowledge_corruption` sets use `substring_match` for both ASR
+and utility — **no judge, no API key** — so the whole run is free on the Qwen-4B backend.
 ```bash
-# Static attacks — target Qwen3-4B fits one T4; Vyuha L1 is CPU, L2 (0.6B) optional.
+# Static attacks — target Qwen3-4B fits the T4x2; Vyuha L1 is CPU, L2 (0.6B) optional. Judge-free dataset.
 for atk in direct combined ignore completion character; do
-  python main.py --dataset squad_v2 --attack $atk --defense vyuha
+  python main.py --dataset nq_rag_knowledge_corruption --attack $atk --defense vyuha \
+    --backend_llm Qwen/Qwen3-4B-Instruct-2507 --name vyuha_h2h
 done
 
 # Search-based attacks (heavier: needs an attacker LLM; keep num_samples small on free tier)

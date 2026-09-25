@@ -36,25 +36,27 @@ def _verdict_unsafe(verdict):
 GUARD_PRESETS = {
     # fast prompt-injection classifier (CPU/GPU) - the injection axis
     "deberta-injection": {"model_id": "protectai/deberta-v3-base-prompt-injection-v2", "mode": "classifier"},
-    # IBM Granite Guardian - reportedly strong on prompt injection; small MoE fits a free T4
-    "granite-guardian": {"model_id": "ibm-granite/granite-guardian-3.2-3b-a800m", "mode": "llm_guard"},
-    "granite-guardian-4": {"model_id": "ibm-granite/granite-guardian-4.1-8b", "mode": "llm_guard"},
+    # IBM Granite Guardian - reportedly strong on prompt injection; MoE. 4-bit so the 3B/8B fits a T4.
+    "granite-guardian": {"model_id": "ibm-granite/granite-guardian-3.2-3b-a800m", "mode": "llm_guard", "load_in_4bit": True},
+    "granite-guardian-4": {"model_id": "ibm-granite/granite-guardian-4.1-8b", "mode": "llm_guard", "load_in_4bit": True},
     # LLM safety guards - the harmful-content / policy axis
-    "llama-guard": {"model_id": "meta-llama/Llama-Guard-3-8B", "mode": "llm_guard"},
-    "qwen3guard": {"model_id": "Qwen/Qwen3Guard-Gen-0.6B", "mode": "llm_guard"},
+    "llama-guard": {"model_id": "meta-llama/Llama-Guard-3-8B", "mode": "llm_guard", "load_in_4bit": True},
+    # Qwen3Guard is only 0.6B - it fits a T4 in fp16, and 4-bit needlessly costs it recall, so keep fp16.
+    "qwen3guard": {"model_id": "Qwen/Qwen3Guard-Gen-0.6B", "mode": "llm_guard", "load_in_4bit": False},
 }
 
 
 class OpenGuard:
     def __init__(self, model_id="protectai/deberta-v3-base-prompt-injection-v2",
                  mode="classifier", device=None, unsafe_label_prefixes=("INJ", "JAIL", "LABEL_1", "UNSAFE"),
-                 load_in_4bit=True):
+                 load_in_4bit=False):
         self.model_id = model_id
         self.mode = mode
         self.device = device
         self.unsafe_prefixes = unsafe_label_prefixes
-        # 4-bit quantise llm_guard weights on GPU so a 3B guard (e.g. Granite) fits a 16GB T4 without
-        # the silent OOM that kills the kernel mid-scoring. No effect on the classifier path.
+        # 4-bit quantise llm_guard weights on GPU so a large 3B/8B guard (e.g. Granite, Llama-Guard)
+        # fits a 16GB T4 without the silent OOM that kills the kernel. Presets enable it only for those;
+        # a small guard (Qwen3Guard-0.6B) stays fp16 because 4-bit needlessly costs it recall.
         self.load_in_4bit = load_in_4bit
         self.name = model_id.split("/")[-1]
         self._ready = False

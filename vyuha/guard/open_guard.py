@@ -104,9 +104,14 @@ class OpenGuard:
                         load_in_4bit=True, bnb_4bit_quant_type="nf4",
                         bnb_4bit_use_double_quant=True, bnb_4bit_compute_dtype=torch.float16)
                     kw.pop("torch_dtype", None)
-                except Exception as e:
+                    kw["device_map"] = {"": dev}   # keep the whole ~2GB 4-bit model on ONE GPU
+                except Exception as e:                 # (multi-GPU 'auto' splits it, adding overhead)
                     print(f"[OpenGuard] 4-bit unavailable ({e}); loading {self.name} in fp16")
             self.model = AutoModelForCausalLM.from_pretrained(self.model_id, **kw)
+            # decoder-only batched generation needs left padding + a pad token
+            if self.tok.pad_token_id is None:
+                self.tok.pad_token = self.tok.eos_token
+            self.tok.padding_side = "left"
         self._ready = True
         return self
 
@@ -122,28 +127,36 @@ class OpenGuard:
             out = self.pipe(texts, batch_size=batch_size)
             # score is confidence of the predicted label; convert to P(unsafe)
             return np.array([r["score"] if self._is_unsafe(r["label"]) else 1 - r["score"] for r in out])
-        # llm_guard: ask the guard, read first token verdict
+        # llm_guard: ask the guard, read the verdict tokens. BATCHED - one generate() per prompt is the
+        # throughput killer (~1.6k sequential calls = hours); batching with left-padding is 10-30x faster.
         import torch
-        scores = []
-        _it = texts
-        if len(texts) > 20:
+        tok = self.tok
+        prompts = []
+        for t in texts:
+            try:
+                prompts.append(tok.apply_chat_template([{"role": "user", "content": t}],
+                                                       add_generation_prompt=True, tokenize=False))
+            except Exception:
+                prompts.append(t)
+        idxs = range(0, len(prompts), batch_size)
+        if len(prompts) > batch_size:
             try:
                 from tqdm.auto import tqdm
-                _it = tqdm(texts, desc=f"{self.name} scoring", unit="prompt")
+                idxs = tqdm(list(idxs), desc=f"{self.name} scoring", unit="batch")
             except Exception:
                 pass
-        for t in _it:
-            try:
-                text = self.tok.apply_chat_template([{"role": "user", "content": t}],
-                                                    add_generation_prompt=True, tokenize=False)
-            except Exception:
-                text = t
-            enc = self.tok(text, return_tensors="pt", truncation=True, max_length=1024).to(self.model.device)
+        scores = []
+        for i in idxs:
+            batch = prompts[i:i + batch_size]
+            enc = tok(batch, return_tensors="pt", padding=True, truncation=True,
+                      max_length=1024).to(self.model.device)
             with torch.no_grad():
                 gen = self.model.generate(**enc, max_new_tokens=16, do_sample=False,
-                                          pad_token_id=self.tok.eos_token_id)
-            verdict = self.tok.decode(gen[0, enc["input_ids"].shape[1]:], skip_special_tokens=True)
-            scores.append(_verdict_unsafe(verdict))   # handles Qwen 'Unsafe', Granite 'Yes', Llama 'unsafe'
+                                          pad_token_id=tok.pad_token_id)
+            new = gen[:, enc["input_ids"].shape[1]:]     # left-padded -> new tokens align per row
+            for row in new:
+                verdict = tok.decode(row, skip_special_tokens=True)
+                scores.append(_verdict_unsafe(verdict))  # Qwen 'Unsafe', Granite 'Yes', Llama 'unsafe'
         return np.array(scores)
 
     def proba_response(self, prompts, responses, batch_size=16):

@@ -104,6 +104,13 @@ def build_vyuha(config=None, fit_data=None):
     if config.get("use_guard", False):
         from vyuha.guard.open_guard import OpenGuard
         pipe.attach_guard(OpenGuard.preset(config.get("guard_preset", "qwen3guard")))
+    # L3 indirect-injection scanner: the layer scoped to instructions injected INTO untrusted content
+    # (which L1's surface detector is not built for). Rule-based, no model. On by default.
+    if config.get("use_injection_scanner", True):
+        from vyuha.agent.injection_scanner import InjectionScanner
+        pipe._l3_scanner = InjectionScanner()
+    else:
+        pipe._l3_scanner = None
     _PIPE_CACHE[key] = pipe
     return pipe
 
@@ -117,9 +124,19 @@ def vyuha_execute(config, target_inst, context, pipe=None):
     config = config or {}
     pipe = pipe or build_vyuha(config)
     res = pipe.scan(target_inst or "", untrusted=(context or ""))
-    injected = (res["decision"] == "block")
+    l1_blocked = (res["decision"] == "block")
 
-    if injected:
+    # L3: scan the UNTRUSTED context for injected instructions (the right layer for indirect
+    # injection - what L1's surface jailbreak detector does not cover). Defense-in-depth.
+    scanner = getattr(pipe, "_l3_scanner", None)
+    l3 = scanner.scan(context or "") if scanner is not None else {"is_injection": False, "score": 0.0, "rules": []}
+    l3_injection = bool(l3["is_injection"])
+    injected = l1_blocked or l3_injection
+
+    if l3_injection:
+        # surgically strip the injected instruction, KEEP the benign passage -> preserves utility
+        cleaned = scanner.sanitize(context or "")
+    elif l1_blocked:
         mode = config.get("neutralize", "empty")
         cleaned = "" if mode == "empty" else "[Vyuha: potential injected instruction removed]"
     else:
@@ -128,7 +145,8 @@ def vyuha_execute(config, target_inst, context, pipe=None):
     return {
         "is_injected": injected, "injected": injected, "detected": injected,
         "attack_detected": injected, "is_attack": injected,
-        "score": res["score"], "fast_score": res["fast_score"],
-        "used_guard": res["used_guard"], "decision": res["decision"],
+        "score": max(res["score"], l3["score"]), "fast_score": res["fast_score"],
+        "l1_decision": res["decision"], "l3_injection": l3_injection, "l3_rules": l3["rules"],
+        "used_guard": res["used_guard"], "decision": ("block" if injected else res["decision"]),
         "cleaned_context": cleaned,
     }

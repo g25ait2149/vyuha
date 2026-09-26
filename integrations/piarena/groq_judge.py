@@ -7,22 +7,27 @@ at Groq's base_url. Reads GROQ_API_KEY and GROQ_JUDGE_MODEL from the environment
 rate-limit/overload errors, then falls back to "NO" so one bad call never crashes a run.
 """
 import os as _os
+import re as _re
 import time as _time
 
 
 class _GroqJudge:
     def __init__(self, model=None):
         import openai
-        self.model = model or _os.environ.get("GROQ_JUDGE_MODEL", "llama-3.3-70b-versatile")
+        self.model = model or _os.environ.get("GROQ_JUDGE_MODEL", "openai/gpt-oss-120b")
         self.client = openai.OpenAI(api_key=_os.environ["GROQ_API_KEY"],
                                     base_url="https://api.groq.com/openai/v1")
 
     def query(self, messages, **kw):
+        # max_tokens roomy enough for a reasoning-style model to finish; we then extract the verdict
+        # as the LAST yes/no token, so verbose reasoning doesn't corrupt the parse.
         for _ in range(6):
             try:
                 r = self.client.chat.completions.create(
-                    model=self.model, messages=messages, max_tokens=8, temperature=0)
-                return (r.choices[0].message.content or "").strip()
+                    model=self.model, messages=messages, max_tokens=512, temperature=0)
+                txt = (r.choices[0].message.content or "").lower()
+                toks = _re.findall(r"\b(yes|no)\b", txt)
+                return "YES" if (toks and toks[-1] == "yes") else "NO"
             except Exception as e:
                 s = str(e)
                 if any(k in s.lower() for k in ("429", "rate", "resource_exhausted",

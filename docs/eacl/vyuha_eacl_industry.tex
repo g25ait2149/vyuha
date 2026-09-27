@@ -256,6 +256,26 @@ poisoned tool metadata at zero false positives on 25 poisoned / 27 benign tools.
 monitor flags 71\% [0.65,0.77] of modeled Crescendo escalations at 0\% benign FPR, versus 0\% for a
 per-message moderator (every turn stays sub-threshold).
 
+\paragraph{External head-to-head, and a detection-vs-mitigation gap (PIArena).} We ship Vyuha as a
+PIArena \citep{piarena} defense plug-in and evaluate it on \emph{squad\_v2} under the \emph{combined}
+attack, targeting an open Qwen-3-4B application and scored by an \emph{independent} judge (a
+GPT-OSS-120B model, distinct from the target's family; $n{=}200$). This surfaces an honest,
+instructive result. First, the surface detector (L1) does \emph{not} fire on this attack distribution
+(0\% at its operating threshold) --- these are out-of-distribution from its in-the-wild jailbreak
+training --- so the selective cascade would not engage on L1 alone. The layer scoped to
+instructions-injected-into-content, L3's injection scanner, instead \textbf{detects 1.00 [0.98,1.00] of
+the injected contexts at 0.5\% benign FPR}: defense-in-depth covering L1's blind spot, exactly as
+designed. \emph{Mitigation}, however, is the hard part: neutralising the injected instruction while
+preserving the ability to answer the legitimate question. Both strategies we tried reduce attack
+success but at a steep utility cost --- surgical sentence-removal takes ASR $0.905\!\to\!0.630$ but
+utility $0.535\!\to\!0.210$, and provenance spotlighting takes ASR to 0.485 but utility to 0.154
+(worse, as the model over-generalises the ``treat as data'' instruction and under-answers). Both drop
+utility \emph{below} the no-defence baseline, so neither is a deployable auto-repair. The honest,
+deployable reading is that L3's value here is \textbf{high-precision detection} --- block or escalate
+the flagged request (accurate, and utility-safe on the 99.5\% of benign traffic) --- rather than
+silently sanitising and answering a poisoned context. Utility-preserving mitigation of injected-context
+attacks is an open problem we quantify rather than paper over (Limitations).
+
 \section{Deployment and Governance}
 Vyuha ships as a Python library, a FastAPI service (\texttt{/scan}, \texttt{/moderate},
 \texttt{/guard\_turn}), and a CLI, so a team can place it in front of or behind an LLM with a few
@@ -344,7 +364,12 @@ a shared harness we release it as a PIArena \citep{piarena} defense plug-in; the
 search-based head-to-head (Direct, Combined, TAP, PAIR) is single-GPU runnable, whereas the strongest
 cited attacker --- the \emph{learned} RL red-teamer PISmith \citep{pismith}, which optimises against
 the model rather than composing fixed transforms --- requires a multi-GPU training rig, so that
-comparison is a stated upper bound rather than a claim of robustness. Some efficiency and attack-cost figures are
+comparison is a stated upper bound rather than a claim of robustness. \textbf{Auto-mitigation of
+injected-context attacks is an open problem we quantify rather than solve}: on the PIArena head-to-head
+L3 \emph{detects} the injection at 1.00 [0.98,1.00] (0.5\% FPR), but both mitigations we tried
+(sentence-removal and provenance spotlighting) reduce ASR only by trading away utility below the
+no-defence baseline --- so we recommend deploying L3 as a high-precision block/escalate gate, and leave
+utility-preserving mitigation (e.g.\ dual-LLM quarantine) to future work. Some efficiency and attack-cost figures are
 estimates under a measured detection rate, labelled as such. No stack is unbreakable; Vyuha raises
 cost, it does not guarantee safety.
 

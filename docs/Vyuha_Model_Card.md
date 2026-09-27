@@ -98,6 +98,13 @@ Recall is reported at a fixed 1% FPR.
   0.87-1.00]** at **0** false positives (benign pass 1.00 [0.88-1.00]); the **instruction-hierarchy**
   tool policy additionally hard-blocks a dangerous action that appears on a tainted turn and was not in
   the user's stated intent (injected-action), rather than merely asking for confirmation.
+- **External head-to-head (PIArena, `squad_v2`/combined, Qwen-3-4B target, independent GPT-OSS-120B judge,
+  n=200):** the surface detector L1 fires **0%** (out-of-distribution), but L3's injection scanner
+  **detects 1.00 [0.98-1.00] at 0.5% benign FPR** - defense-in-depth covering L1's blind spot.
+  **Auto-mitigation is an open problem, reported honestly:** sanitize takes ASR **0.905 -> 0.630** at
+  utility **0.535 -> 0.210**; spotlighting takes ASR **-> 0.485** but utility **-> 0.154** (the model
+  over-refuses) - both below the no-defense utility. So deploy L3 as a **high-precision block/escalate
+  gate**, not silent auto-repair; utility-preserving mitigation (e.g. dual-LLM quarantine) is future work.
 - **L4 output:** flag **precision = recall = F1 = 1.00** on the labeled leak/harm probe. Response-harm
   is scored by the **content guard** (Qwen3Guard) on the (prompt, response) pair, not the L1 detector:
   on a small cue-less harmful-compliance contrast set (illustrative, n=5) the content guard scores

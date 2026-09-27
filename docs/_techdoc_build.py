@@ -510,7 +510,12 @@ H.append(table(
      ["MCP tool-poisoning (L3)", "hidden-instruction detection <b>1.00</b> [0.87&ndash;1.00] at <b>0</b> false "
       "positives", "25 poisoned / 27 benign tool definitions"],
      ["Multi-turn / Crescendo (L5)", "session-level detection <b>0.71</b> [0.65&ndash;0.77] versus <b>0.00</b> "
-      "for a per-message moderator (every turn stays sub-threshold), at 0% benign FP", "modeled escalation trajectories"]]))
+      "for a per-message moderator (every turn stays sub-threshold), at 0% benign FP", "modeled escalation trajectories"],
+     ["PIArena head-to-head (external)", "L1 fires <b>0%</b> (out-of-distribution) but L3 <b>detects 1.00</b> "
+      "[0.98&ndash;1.00] at 0.5% FPR &mdash; defense-in-depth covering L1&rsquo;s blind spot. <b>Auto-mitigation is "
+      "an open problem</b>: sanitize takes ASR 0.905&rarr;0.630 (utility 0.535&rarr;0.210), spotlight ASR&rarr;0.485 "
+      "(utility&rarr;0.154) &mdash; both below the no-defence utility, so deploy L3 as a high-precision block/escalate "
+      "gate, not auto-repair", "PIArena squad_v2/combined, Qwen-3-4B target, independent GPT-OSS-120B judge, n=200"]]))
 H.append('<h2>8 · How Vyuha compares, and how it meets standards</h2>')
 H.append('<h3>8.1 · Versus existing solutions</h3>')
 H.append('<ul>'

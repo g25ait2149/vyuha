@@ -17,6 +17,8 @@
 \usetikzlibrary{positioning,arrows.meta}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
+% Unmistakable placeholder for results still pending a compute run. MUST NOT survive to submission.
+\newcommand{\pending}{\textbf{[TBD]}}
 \usepackage{url}
 
 \title{Vyuha: A Reproducible, Free-Compute Layered Guardrail for Deploying\\
@@ -51,7 +53,7 @@ per-message moderator catches 0\% of. We are explicit throughout about where str
 \section{Introduction}
 Large language models deployed as assistants and autonomous agents face a moving adversary:
 jailbreaks that strip safety behaviour, prompt injections hidden in retrieved content and tool
-metadata, obfuscated and multilingual attacks, semantic (persuasion) attacks with no surface tell,
+metadata, obfuscated attacks, semantic (persuasion) attacks with no surface tell,
 and responses that leak secrets. Prompt injection is the \#1 risk in the OWASP Top~10 for LLM
 Applications \citep{owasp-llm}, and \citet{attacker-second} show that adaptive attackers bypass a
 dozen recent defenses at $>$90\% attack-success-rate (ASR) by tuning general optimisers: robustness
@@ -249,6 +251,28 @@ the advantage narrowing as FPR rises and vanishing by $\sim$16\%. The lesson is 
 deployable union must run on calibrated continuous scores at per-member thresholds, never a raw OR, and
 its value is concentrated at the low-FPR operating point production actually uses.
 
+% ---- PLACEHOLDER TABLE: fill from P15 cell F1 (same-param baselines). Do NOT submit with [TBD]. ----
+\paragraph{Same-parameter-count comparison.} Table~\ref{tab:baselines} places the 0.6B guard against
+other current open guards on the \emph{same} split, with ShieldGemma-2B as the closest size match;
+recall is reported at a matched benign-FPR operating point with Wilson 95\% confidence intervals.
+\begin{table}[t]
+\centering\small
+\begin{tabular}{lrccc}
+\toprule
+Guard & Params & Recall [95\% CI] & 6-axis & Benign FPR \\
+\midrule
+Qwen3Guard-Gen (ours) & 0.6B & \pending & \pending & \pending \\
+ShieldGemma           & 2B   & \pending & \pending & \pending \\
+WildGuard             & 7B   & \pending & \pending & \pending \\
+Granite Guardian 4.1  & 8B   & \pending & \pending & \pending \\
+Llama Guard 4         & 12B  & \pending & \pending & \pending \\
+\bottomrule
+\end{tabular}
+\caption{Same-benchmark guard comparison at a matched operating point (NIST-AI-RMF reconstruction;
+recall is the safety-critical metric, with Wilson 95\% CIs). Numbers pending the P0-2 run.}
+\label{tab:baselines}
+\end{table}
+
 \paragraph{Agent and multi-turn defense (L3, L5).} On AgentDojo (banking, \emph{important\_instructions}),
 L3 drives injection ASR to 0.00 on both a weak and a strong open agent; injection-under-obfuscation
 detection is 1.00 versus 0.00--0.17 for a regex baseline. The MCP scanner detects 1.00 [0.87,1.00] of
@@ -259,7 +283,12 @@ per-message moderator (every turn stays sub-threshold).
 \paragraph{External head-to-head, and a detection-vs-mitigation gap (PIArena).} We ship Vyuha as a
 PIArena \citep{piarena} defense plug-in and evaluate it on \emph{squad\_v2} under the \emph{combined}
 attack, targeting an open Qwen-3-4B application and scored by an \emph{independent} judge (a
-GPT-OSS-120B model, distinct from the target's family; $n{=}200$). This surfaces an honest,
+GPT-OSS-120B model, distinct from the target's family; $n{=}200$).\footnote{\emph{Measurement
+validity.} A minority of attacked responses are short error-like strings (e.g.\ ``Server Error 500'',
+``Access denied''). A per-sample diagnostic confirms these are attack-\emph{induced} --- the
+\emph{combined} attack's injected instruction directs the model to emit exactly that text --- and are
+not backend or infrastructure failures, so they are correctly scored as attack successes and do not
+spuriously shift ASR in either direction.} This surfaces an honest,
 instructive result. First, the surface detector (L1) does \emph{not} fire on this attack distribution
 (0\% at its operating threshold) --- these are out-of-distribution from its in-the-wild jailbreak
 training --- so the selective cascade would not engage on L1 alone. The layer scoped to
@@ -275,6 +304,26 @@ deployable reading is that L3's value here is \textbf{high-precision detection} 
 the flagged request (accurate, and utility-safe on the 99.5\% of benign traffic) --- rather than
 silently sanitising and answering a poisoned context. Utility-preserving mitigation of injected-context
 attacks is an open problem we quantify rather than paper over (Limitations).
+
+% ---- PLACEHOLDER TABLE: fill from P16 cell 8d (scale across backends). Do NOT submit with [TBD]. ----
+\paragraph{Across target backends.} To show the head-to-head is not specific to one target, Table~\ref{tab:backends}
+repeats it on additional backends (a larger same-family model and a different family), same
+\emph{combined} attack and independent judge, with Wilson 95\% CIs.
+\begin{table}[t]
+\centering\small
+\begin{tabular}{lcccc}
+\toprule
+Target backend & L3 detect.\ [CI] & ASR (none) & ASR (Vyuha) & Utility \\
+\midrule
+Qwen-3-4B    & \pending & \pending & \pending & \pending \\
+Qwen-3-14B   & \pending & \pending & \pending & \pending \\
+Llama-3.1-8B & \pending & \pending & \pending & \pending \\
+\bottomrule
+\end{tabular}
+\caption{External PIArena head-to-head across target backends (\emph{combined} attack, independent
+GPT-OSS-120B judge, Wilson 95\% CIs). Numbers pending the P0-1 run.}
+\label{tab:backends}
+\end{table}
 
 \section{Deployment and Governance}
 Vyuha ships as a Python library, a FastAPI service (\texttt{/scan}, \texttt{/moderate},
@@ -337,10 +386,12 @@ but the \emph{measured composition} --- a complete L0--L5 stack shipped as a lib
 its \emph{reproducibility on a single free GPU}, and an \emph{honest evaluation methodology} (recall-first,
 confidence intervals, an adaptive ablation, and a standardised benchmark) applied to the \emph{deployed
 system} rather than to one component in isolation. Crucially, the composed guards are an interchangeable
-slot, not the contribution: L2 currently binds the strongest small open guards available at writing
-(Qwen3Guard-0.6B, Granite Guardian; 2025--2026 releases), but the cascade, the selective-invocation
-policy, the fixed-FPR calibration, and the measurement harness are model-agnostic and hot-swap whatever
-guard leads next. The delta therefore does not decay when a newer guard ships --- it is the harness and
+slot, not the contribution: L2 currently binds the strongest small open guards current at writing
+(Qwen3Guard-0.6B, with Granite Guardian~4.1-8B and Llama~Guard~4 as complementary members --- all 2026
+releases and, as of this writing, the latest of their respective families), but the cascade, the
+selective-invocation policy, the fixed-FPR calibration, and the measurement harness are model-agnostic
+and hot-swap whatever guard leads next --- including 2026 entrants beyond these families. The delta
+therefore does not decay when a newer guard ships --- it is the harness and
 the methodology, which the individual detectors of \citet{promptshield}, \citet{pismith} and
 \citet{haste} do not provide.
 
@@ -369,9 +420,12 @@ injected-context attacks is an open problem we quantify rather than solve}: on t
 L3 \emph{detects} the injection at 1.00 [0.98,1.00] (0.5\% FPR), but both mitigations we tried
 (sentence-removal and provenance spotlighting) reduce ASR only by trading away utility below the
 no-defence baseline --- so we recommend deploying L3 as a high-precision block/escalate gate, and leave
-utility-preserving mitigation (e.g.\ dual-LLM quarantine) to future work. Some efficiency and attack-cost figures are
-estimates under a measured detection rate, labelled as such. No stack is unbreakable; Vyuha raises
-cost, it does not guarantee safety.
+utility-preserving mitigation (e.g.\ dual-LLM quarantine) to future work. Our external head-to-head is
+measured on a single target backend (Qwen-3-4B) at $n{=}200$; broader and larger backends and larger
+prompt sets are future work. The parameter-efficiency result (0.6B on par with 4B) is \emph{within} one
+guard family; a controlled cross-family comparison at matched parameter counts remains to be run. Some
+efficiency and attack-cost figures are estimates under a measured detection rate, labelled as such. No
+stack is unbreakable; Vyuha raises cost, it does not guarantee safety.
 
 \section*{Ethics}
 Vyuha is a defensive safety filter. Its red-team and attack code mutate only attacks already present

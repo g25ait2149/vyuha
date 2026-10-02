@@ -305,23 +305,34 @@ the flagged request (accurate, and utility-safe on the 99.5\% of benign traffic)
 silently sanitising and answering a poisoned context. Utility-preserving mitigation of injected-context
 attacks is an open problem we quantify rather than paper over (Limitations).
 
-% ---- PLACEHOLDER TABLE: fill from P16 cell 8d (scale across backends). Do NOT submit with [TBD]. ----
-\paragraph{Across target backends.} To show the head-to-head is not specific to one target, Table~\ref{tab:backends}
-repeats it on additional backends (a larger same-family model and a different family), same
-\emph{combined} attack and independent judge, with Wilson 95\% CIs.
+\paragraph{Across target backends.} The detection--mitigation gap is not specific to one target.
+Table~\ref{tab:backends} repeats the head-to-head on a different-family backend (Llama-3.1-8B); L3
+detection is input-side and backend-independent (1.00 [0.98,1.00]), so the table reports the
+\emph{attack and mitigation} outcome under the default (spotlight) configuration. The combined attack
+lands differently per backend --- Qwen-3-4B complies with the injected task far more (ASR 0.92 vs 0.42)
+while still answering, whereas Llama-3.1-8B resists the injected task but its answers are more often
+suppressed by it (utility 0.18 vs 0.53) --- yet on \emph{both}, spotlight mitigation fails to improve
+the trade-off, because L1 is out-of-distribution and the cascade does not engage. This confirms, across
+backends, that L3's deployable value is high-precision \emph{detection} (block/escalate), not in-place
+repair.
 \begin{table}[t]
 \centering\small
-\begin{tabular}{lcccc}
+\begin{tabular}{llcc}
 \toprule
-Target backend & L3 detect.\ [CI] & ASR (none) & ASR (Vyuha) & Utility \\
+Backend & Metric & none [95\% CI] & Vyuha [95\% CI] \\
 \midrule
-Qwen-3-4B    & \pending & \pending & \pending & \pending \\
-Qwen-3-14B   & \pending & \pending & \pending & \pending \\
-Llama-3.1-8B & \pending & \pending & \pending & \pending \\
+Qwen-3-4B & ASR & 0.92 [0.87,0.95] & 0.54 [0.47,0.61] \\
+ & Utility & 0.53 [0.46,0.60] & 0.18 [0.13,0.24] \\
+\midrule
+Llama-3.1-8B & ASR & 0.42 [0.36,0.49] & 0.42 [0.35,0.48] \\
+ & Utility & 0.18 [0.13,0.23] & 0.17 [0.12,0.23] \\
 \bottomrule
 \end{tabular}
-\caption{External PIArena head-to-head across target backends (\emph{combined} attack, independent
-GPT-OSS-120B judge, Wilson 95\% CIs). Numbers pending the P0-1 run.}
+\caption{PIArena head-to-head across target backends (\emph{combined} attack, independent
+GPT-OSS-120B judge, $n{=}200$ each, Wilson 95\% CIs); Vyuha at its default spotlight config. L3
+detection is backend-independent (1.00 [0.98,1.00]). The fresh 4B spotlight figures agree within CIs
+with the per-strategy run reported above; on neither backend does mitigation improve the ASR/utility
+trade-off --- the null generalisation that motivates deploying L3 as a detection gate.}
 \label{tab:backends}
 \end{table}
 
@@ -421,8 +432,8 @@ L3 \emph{detects} the injection at 1.00 [0.98,1.00] (0.5\% FPR), but both mitiga
 (sentence-removal and provenance spotlighting) reduce ASR only by trading away utility below the
 no-defence baseline --- so we recommend deploying L3 as a high-precision block/escalate gate, and leave
 utility-preserving mitigation (e.g.\ dual-LLM quarantine) to future work. Our external head-to-head is
-measured on a single target backend (Qwen-3-4B) at $n{=}200$; broader and larger backends and larger
-prompt sets are future work. The parameter-efficiency result (0.6B on par with 4B) is \emph{within} one
+measured on two target backends (Qwen-3-4B and Llama-3.1-8B) at $n{=}200$ each; still-larger backends
+and prompt sets are future work. The parameter-efficiency result (0.6B on par with 4B) is \emph{within} one
 guard family; a controlled cross-family comparison at matched parameter counts remains to be run. Some
 efficiency and attack-cost figures are estimates under a measured detection rate, labelled as such. No
 stack is unbreakable; Vyuha raises cost, it does not guarantee safety.

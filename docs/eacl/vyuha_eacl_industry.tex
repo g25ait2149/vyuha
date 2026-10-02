@@ -251,25 +251,28 @@ the advantage narrowing as FPR rises and vanishing by $\sim$16\%. The lesson is 
 deployable union must run on calibrated continuous scores at per-member thresholds, never a raw OR, and
 its value is concentrated at the low-FPR operating point production actually uses.
 
-% ---- PLACEHOLDER TABLE: fill from P15 cell F1 (same-param baselines). Do NOT submit with [TBD]. ----
-\paragraph{Same-parameter-count comparison.} Table~\ref{tab:baselines} places the 0.6B guard against
-other current open guards on the \emph{same} split, with ShieldGemma-2B as the closest size match;
-recall is reported at a matched benign-FPR operating point with Wilson 95\% confidence intervals.
+\paragraph{Same-parameter-count comparison.} Table~\ref{tab:baselines} compares our 0.6B guard against
+the closest size-matched open guard, ShieldGemma-2B, on the same NIST-RMF split at each guard's default
+hard decision. Our 0.6B guard is at least as capable as the 3$\times$ larger ShieldGemma-2B here ---
+higher harm-axis recall (0.80 vs 0.43) at a higher benign FPR (6.4\% vs 1.8\%); the gap partly reflects
+ShieldGemma's narrower four-category policy and more conservative threshold. A broader comparison
+(Granite Guardian, Llama Guard, WildGuard) requires guard-specific prompt handling and is in progress.
 \begin{table}[t]
 \centering\small
 \begin{tabular}{lrccc}
 \toprule
 Guard & Params & Recall [95\% CI] & 6-axis & Benign FPR \\
 \midrule
-Qwen3Guard-Gen (ours) & 0.6B & \pending & \pending & \pending \\
-ShieldGemma           & 2B   & \pending & \pending & \pending \\
-WildGuard             & 7B   & \pending & \pending & \pending \\
-Granite Guardian 4.1  & 8B   & \pending & \pending & \pending \\
-Llama Guard 4         & 12B  & \pending & \pending & \pending \\
+Qwen3Guard-Gen (ours) & 0.6B & 0.55 [0.52,0.59] & 0.80 & 0.064 \\
+ShieldGemma           & 2B   & 0.29 [0.26,0.33] & 0.43 & 0.018 \\
 \bottomrule
 \end{tabular}
-\caption{Same-benchmark guard comparison at a matched operating point (NIST-AI-RMF reconstruction;
-recall is the safety-critical metric, with Wilson 95\% CIs). Numbers pending the P0-2 run.}
+\caption{Same-benchmark guard comparison (NIST-AI-RMF reconstruction; hard verdicts at each guard's
+default threshold, ShieldGemma in 4-bit, Wilson 95\% CIs; $n{=}807$ unsafe / $800$ benign). Recall is
+overall; 6-axis is the complete-harmful-request axes. At hard verdicts our 0.6B guard shows 0.80 on the
+six axes (vs its 0.886 \emph{soft} operating point in Table~\ref{tab:main}, which grades Qwen's
+``Controversial'' tier); ShieldGemma targets four harm categories, so some axes fall outside its policy.
+Larger-guard baselines are in progress.}
 \label{tab:baselines}
 \end{table}
 

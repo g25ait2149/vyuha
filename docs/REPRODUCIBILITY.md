@@ -55,6 +55,7 @@ Each `notebooks/vyuha_P*.ipynb` is self-contained (clones the repo, installs lig
 - **P13** guard ensemble · **P14** adaptive (pairwise + genetic) robustness
 - **P15** NIST-RMF guard benchmark (+ section F: same-parameter-count baselines; cell E: calibrated ensemble)
 - **P16** PIArena head-to-head (+ section 8: scale across backends)
+- **Guard comparison (paper Table 2)**: `notebooks/vyuha_guard_rescore_v2_colab.ipynb` (free Colab T4; scores all six guards by raw verdict-token log-odds with two validity gates, then the table + calibrated composition; scores saved to Drive, resumable)
 
 Gated models/datasets need an `HF_TOKEN` Kaggle secret; the PIArena judge needs a `GROQ_API_KEY`
 secret (independent `gpt-oss-120b` judge). New Kaggle accounts must be phone-verified to enable
@@ -63,8 +64,10 @@ GPU + Internet.
 ## 5. Guard & backend versions (current as of 2026-09)
 
 - Content guard (L2, shipped): `Qwen/Qwen3Guard-Gen-0.6B`.
-- Ensemble / baseline guards: `ibm-granite/granite-guardian-4.1-8b`, `meta-llama/Llama-Guard-4-12B`,
-  `google/shieldgemma-2b`, `allenai/wildguard`. The L2 slot is model-agnostic and hot-swaps newer guards.
+- Baseline guards (measured in Table 2): `google/shieldgemma-2b`, `ibm-granite/granite-guardian-3.2-3b-a800m`,
+  `meta-llama/Llama-Guard-3-8B`, `ibm-granite/granite-guardian-4.1-8b` (guardian block, no-think mode),
+  `Qwen/Qwen3Guard-Gen-4B`. Not measured: `meta-llama/Llama-Guard-4-12B` (fails to load on our single-T4
+  stack), `allenai/wildguard` (non-first-token verdict format). The L2 slot is model-agnostic and hot-swaps newer guards.
 - Head-to-head target backends: `Qwen/Qwen3-4B-Instruct-2507`, `meta-llama/Llama-3.1-8B-Instruct`
   (and optionally a larger same-family model).
 

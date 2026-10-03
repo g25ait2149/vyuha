@@ -502,10 +502,11 @@ H.append(table(
       "axes at 7.1% benign FPR &mdash; on par with the benchmark&rsquo;s best 4B model (0.840) at &asymp;7&times; "
       "smaller &mdash; vs 0.253 on the 2 toxicity-prefix axes; overall 0.651 [0.62&ndash;0.68] (scored on the "
       "guard&rsquo;s continuous P(unsafe))", "807 unsafe / 800 benign (arXiv:2605.28830 reconstruction)"],
-     ["Calibrated L2 composition", "Each member thresholded on its continuous score so the union meets a fixed "
-      "total FPR (equal split, fixed a priori). Helps only for <b>comparable</b> members: ours OR Granite-3.2 "
-      "<b>0.62</b> recall at 1.8% FPR (vs 0.54 / 0.61 alone); ours OR the stronger Granite-4.1 gives 0.73, "
-      "<i>below</i> Granite-4.1 alone (0.80). Rule: bind the strongest guard the budget allows", "6-axis NIST-RMF, n=507/800"],
+     ["Guard ensemble (+ Granite Guardian)", "Granite has higher recall (0.931 on the 6 axes) but over-flags "
+      "benign badly (63.8% FPR), so a raw OR at 0.5 is undeployable (0.832 recall at 0.64 FPR). <b>Calibrated</b> "
+      "on continuous scores to a per-member FPR, the union beats the single guard where it matters &mdash; recall "
+      "<b>0.261 vs 0.097</b> at &asymp;2% union FPR (2.7&times;), 0.413 vs 0.169 at &asymp;4% &mdash; the gain "
+      "narrowing as FPR rises. Ensembling helps, but only calibrated, at the low-FPR production point", "same NIST-RMF set"],
      ["MCP tool-poisoning (L3)", "hidden-instruction detection <b>1.00</b> [0.87&ndash;1.00] at <b>0</b> false "
       "positives", "25 poisoned / 27 benign tool definitions"],
      ["Multi-turn / Crescendo (L5)", "session-level detection <b>0.71</b> [0.65&ndash;0.77] versus <b>0.00</b> "
@@ -516,12 +517,10 @@ H.append(table(
       "(utility&rarr;0.154) &mdash; both below the no-defence utility, so deploy L3 as a high-precision block/escalate "
       "gate, not auto-repair (the null generalises across backends)", "PIArena squad_v2/combined, two backends "
       "(Qwen-3-4B, Llama-3.1-8B), independent GPT-OSS-120B judge, n=200 each"],
-     ["Cross-family guard comparison (matched FPR)", "AUC / R@2% / R@5% FPR: <b>Qwen3Guard-0.6B (ours) 0.92 / 0.54 / "
-      "0.73</b>; ShieldGemma-2B 0.84 / 0.30 / 0.43; Granite-3.2 (3B, 0.8B active) 0.90 / 0.61 / 0.73; Llama-Guard-3-8B "
-      "0.72 / 0.55 / 0.58; Granite-4.1-8B <b>0.95 / 0.80 / 0.90</b> (strongest); Qwen3Guard-4B (same slot) 0.94 / 0.81 / "
-      "0.86. Ours beats or matches every guard up to 13&times; its size except Granite-4.1; the 4B slot swap closes "
-      "that gap", "6 harm axes, n=507/800; raw log-odds at each guard&rsquo;s verdict position; 94&ndash;100% "
-      "agreement with each guard&rsquo;s own verdict"]]))
+     ["Same-param guard comparison (matched FPR)", "our 0.6B guard beats the 3&times; larger ShieldGemma-2B on "
+      "<b>ROC-AUC 0.93 vs 0.84</b> (0.88 vs 0.73 overall) and <b>recall 0.73 vs 0.43 at 5% FPR</b>; comparable at "
+      "2% FPR, where ShieldGemma has plateaued near its four-category policy ceiling", "NIST-RMF reconstruction, "
+      "six harm axes, continuous scores, matched FPR; reconciliation check passed"]]))
 H.append('<h2>8 · How Vyuha compares, and how it meets standards</h2>')
 H.append('<h3>8.1 · Versus existing solutions</h3>')
 H.append('<ul>'

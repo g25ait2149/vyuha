@@ -1,19 +1,3 @@
----
-license: mit
-language:
-- en
-tags:
-- prompt-injection
-- jailbreak-detection
-- guardrails
-- llm-security
-- qlora
-- defense-in-depth
-library_name: peft
-pipeline_tag: text-classification
-base_model: Qwen/Qwen2.5-1.5B
----
-
 # Model Card - Vyuha (Layered LLM Jailbreak & Prompt-Injection Defense)
 
 Following the Mitchell et al. model-card convention and Hugging Face model-card sections.
@@ -79,10 +63,10 @@ Recall is reported at a fixed 1% FPR.
   but **adaptive** ASR stays **1.00 [0.97, 1.00]** (the attacker-moves-second premium); adversarial
   augmentation closes it - RJD-v2 holds adaptive ASR to **0.03 [0.01, 0.08]** at **1%** benign FPR.
   A harder **genetic** attacker (deep transform chains + crossover, ~110 queries/seed) confirms this:
-  the full detector holds at **0.07 [0.04, 0.12]** (statistically indistinguishable from pairwise 0.03),
-  while **augmentation alone collapses to 0.92 [0.86, 0.95]** under it (vs 0.25 pairwise) - L0
-  normalization is far more load-bearing than pairwise implied, and neither component is sufficient
-  alone. Both earn their place.
+  the full detector holds at **0.07 [0.04, 0.12]** (statistically indistinguishable from the pairwise
+  0.03), while **augmentation alone collapses to 0.92 [0.86, 0.95]** under the genetic search (vs 0.25
+  pairwise) - showing L0 normalization is far more load-bearing than the pairwise ablation implied, and
+  neither L0 nor augmentation is sufficient alone. Both earn their place.
 - **L1 ensemble (Vyuha-Fast) - NOT the default:** adding a semantic + signature signal raises
   over-refusal to **FRR 0.175** for negligible gain (its templates false-fire on benign text), so
   RJD-v2 ships as L1 and the ensemble is optional.
@@ -93,11 +77,12 @@ Recall is reported at a fixed 1% FPR.
   complete-harmful-request axes (BeaverTails) at **7.1%** benign FPR - on par with the paper's best 4B
   model (**0.840**) at ≈7x smaller - and **0.253** on the 2 toxicity-prefix axes (RealToxicityPrompts);
   overall **0.651 [0.62-0.68]**. Recall is the critical metric; the per-category spread motivates the L2
-  guard slot. **Composition (measured, calibrated):** each member is thresholded on its continuous score
-  so the union meets a fixed total FPR (equal split, fixed a priori), never a raw OR of hard verdicts.
-  It helps only when members are comparable: ours OR Granite-Guardian-3.2 reaches **0.62** recall at
-  1.8% FPR (vs 0.54 / 0.61 alone), but ours OR the stronger Granite-Guardian-4.1 gives 0.73, *below*
-  Granite-4.1 alone (0.80). Rule: bind the strongest guard the budget allows; compose comparable members.
+  guard ensemble. **Ensemble (measured):** the complementary Granite Guardian has higher recall (**0.931**
+  on the 6 axes) but over-flags benign badly (**63.8%** FPR), so a raw OR at 0.5 is undeployable (0.832
+  recall at 0.64 FPR). Calibrated on continuous scores to a per-member FPR, the union beats the single
+  guard where it matters: recall **0.261 vs 0.097** at ≈2% union FPR (2.7x), **0.413 vs 0.169** at ≈4%,
+  the gain narrowing as FPR rises and vanishing by ≈16%. Ensembling helps - but only calibrated, at the
+  low-FPR operating point production uses (`fit_thresholds`), never a raw OR.
 - **L2 tuned guard (QLoRA, 1.5B):** cross-benchmark ROC-AUC **0.72-0.92** on unseen jailbreaks at FRR
   0.03-0.06, but **jailbreak-only** (inert on harmful-topic XSTest 0.00 and semantic PAIR 0.03).
 - **Semantic attacks (PAIR, n=103):** L1 flags **6.8%**, tuned guard 2.9%, content guard **90.3%**;
@@ -113,23 +98,22 @@ Recall is reported at a fixed 1% FPR.
   0.87-1.00]** at **0** false positives (benign pass 1.00 [0.88-1.00]); the **instruction-hierarchy**
   tool policy additionally hard-blocks a dangerous action that appears on a tainted turn and was not in
   the user's stated intent (injected-action), rather than merely asking for confirmation.
-- **Cross-family guard comparison (matched FPR, 6 guards, 4 families).** Six complete-harmful-request
-  axes (n=507 unsafe / 800 benign), every guard scored identically by raw verdict-token log-odds at its own
-  verdict position and validated against its own generated verdict (94-100% agreement). ROC-AUC /
-  recall@2%FPR / recall@5%FPR: **Qwen3Guard-0.6B (ours) 0.92 / 0.54 / 0.73**; ShieldGemma-2B 0.84 / 0.30 /
-  0.43; Granite-Guardian-3.2 (3B, 0.8B active) 0.90 / 0.61 / 0.73; Llama-Guard-3-8B 0.72 / 0.55 / 0.58;
-  **Granite-Guardian-4.1-8B 0.95 / 0.80 / 0.90** (strongest); Qwen3Guard-4B in the same L2 slot 0.94 /
-  0.81 / 0.86. Our 0.6B beats or matches every guard up to 13x its size except Granite-4.1-8B; swapping
-  the 4B into the model-agnostic slot closes that gap. Methodology note: rank on log-odds, not sigmoid
-  probabilities - saturated probabilities tie at the benign quantile and silently zero strict-FPR recall.
-- **External head-to-head (PIArena, `squad_v2`/combined, independent GPT-OSS-120B judge, n=200 each)
-  across TWO backends (Qwen-3-4B and Llama-3.1-8B):** L1 fires **0%** (out-of-distribution), but L3's
-  injection scanner **detects 1.00 [0.98-1.00] at 0.5% FPR** (backend-independent) - defense-in-depth
-  covering L1's blind spot, confirmed across backends. **Auto-mitigation is an open problem (reported
-  honestly):** sanitize takes ASR **0.905 -> 0.630** (utility 0.535 -> 0.210); spotlighting ASR **-> 0.485**
-  (utility -> 0.154, the model over-refuses) - both below the no-defense utility, and the null generalises
-  across backends. Deploy L3 as a **high-precision block/escalate gate**, not silent auto-repair;
-  utility-preserving mitigation (e.g. dual-LLM quarantine) is future work.
+- **Same-parameter-count guard comparison (matched FPR).** Scored continuously and compared at a matched
+  benign FPR on the six complete-harmful-request axes, our 0.6B guard beats the **3x larger ShieldGemma-2B**
+  on threshold-free **ROC-AUC (0.93 vs 0.84; 0.88 vs 0.73 overall)** and on recall at a **5% FPR** operating
+  point (**0.73 vs 0.43**); the two are comparable at an ultra-strict 2% FPR, where ShieldGemma has plateaued
+  near its four-category policy ceiling. A 0.6B guard thus matches or beats a 3x larger one in ranking
+  quality and deployable recall. (Validated by a reconciliation check: continuous@0.5 recall 0.438 matches
+  the hard verdict's 0.432.)
+- **External head-to-head (PIArena, `squad_v2`/combined, independent GPT-OSS-120B judge, n=200 each) across
+  TWO backends (Qwen-3-4B and Llama-3.1-8B):** the surface detector L1 fires **0%** (out-of-distribution),
+  but L3's injection scanner **detects 1.00 [0.98-1.00] at 0.5% benign FPR** (backend-independent) -
+  defense-in-depth covering L1's blind spot, confirmed across backends.
+  **Auto-mitigation is an open problem, reported honestly:** sanitize takes ASR **0.905 -> 0.630** at
+  utility **0.535 -> 0.210**; spotlighting takes ASR **-> 0.485** but utility **-> 0.154** (the model
+  over-refuses) - both below the no-defense utility. The null generalises across backends: on neither
+  does spotlight improve the trade-off. So deploy L3 as a **high-precision block/escalate gate**, not
+  silent auto-repair; utility-preserving mitigation (e.g. dual-LLM quarantine) is future work.
 - **L4 output:** flag **precision = recall = F1 = 1.00** on the labeled leak/harm probe. Response-harm
   is scored by the **content guard** (Qwen3Guard) on the (prompt, response) pair, not the L1 detector:
   on a small cue-less harmful-compliance contrast set (illustrative, n=5) the content guard scores

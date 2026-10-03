@@ -251,28 +251,30 @@ the advantage narrowing as FPR rises and vanishing by $\sim$16\%. The lesson is 
 deployable union must run on calibrated continuous scores at per-member thresholds, never a raw OR, and
 its value is concentrated at the low-FPR operating point production actually uses.
 
-\paragraph{Same-parameter-count comparison.} Table~\ref{tab:baselines} compares our 0.6B guard against
-the closest size-matched open guard, ShieldGemma-2B, on the same NIST-RMF split at each guard's default
-hard decision. Our 0.6B guard is at least as capable as the 3$\times$ larger ShieldGemma-2B here ---
-higher harm-axis recall (0.80 vs 0.43) at a higher benign FPR (6.4\% vs 1.8\%); the gap partly reflects
-ShieldGemma's narrower four-category policy and more conservative threshold. A broader comparison
-(Granite Guardian, Llama Guard, WildGuard) requires guard-specific prompt handling and is in progress.
+\paragraph{Same-parameter-count comparison (matched FPR).} Scored \emph{continuously} and compared at a
+matched benign false-positive rate --- the operating-point-independent way to compare guards ---
+Table~\ref{tab:baselines} puts our 0.6B guard against the closest size-matched open guard, ShieldGemma-2B.
+Our guard has the higher ROC-AUC on the six complete-harmful-request axes (0.93 vs 0.84; 0.88 vs 0.73
+overall) and far higher recall at a 5\% FPR operating point (0.73 vs 0.43): ShieldGemma's recall plateaus
+near 0.43 --- its four-category policy ceiling --- while ours keeps climbing. The two are comparable only
+at an ultra-strict 2\% FPR. A 0.6B guard thus matches or beats a 3$\times$ larger one in both ranking
+quality and deployable recall. (A broader set --- Granite Guardian, Llama Guard, WildGuard --- requires
+guard-specific scoring and is in progress.)
 \begin{table}[t]
 \centering\small
 \begin{tabular}{lrccc}
 \toprule
-Guard & Params & Recall [95\% CI] & 6-axis & Benign FPR \\
+Guard & Params & ROC-AUC & R@2\%FPR & R@5\%FPR \\
 \midrule
-Qwen3Guard-Gen (ours) & 0.6B & 0.55 [0.52,0.59] & 0.80 & 0.064 \\
-ShieldGemma           & 2B   & 0.29 [0.26,0.33] & 0.43 & 0.018 \\
+Qwen3Guard-Gen (ours) & 0.6B & \textbf{0.93} & 0.27 [0.23,0.31] & \textbf{0.73} [0.69,0.77] \\
+ShieldGemma           & 2B   & 0.84 & 0.30 [0.26,0.34] & 0.43 [0.39,0.48] \\
 \bottomrule
 \end{tabular}
-\caption{Same-benchmark guard comparison (NIST-AI-RMF reconstruction; hard verdicts at each guard's
-default threshold, ShieldGemma in 4-bit, Wilson 95\% CIs; $n{=}807$ unsafe / $800$ benign). Recall is
-overall; 6-axis is the complete-harmful-request axes. At hard verdicts our 0.6B guard shows 0.80 on the
-six axes (vs its 0.886 \emph{soft} operating point in Table~\ref{tab:main}, which grades Qwen's
-``Controversial'' tier); ShieldGemma targets four harm categories, so some axes fall outside its policy.
-Larger-guard baselines are in progress.}
+\caption{Matched-FPR guard comparison on the six complete-harmful-request axes (NIST-AI-RMF
+reconstruction, $n{=}807$ unsafe / $800$ benign; continuous scores, Wilson 95\% CIs on recall). ROC-AUC
+is threshold-free; recall is at matched 2\% and 5\% benign FPR. Our 0.6B guard leads on AUC and at 5\%
+FPR; the guards are comparable at 2\% FPR, where ShieldGemma's recall has already plateaued near its
+four-category policy ceiling (0.43). Overall (all eight axes) AUC is 0.88 vs 0.73.}
 \label{tab:baselines}
 \end{table}
 

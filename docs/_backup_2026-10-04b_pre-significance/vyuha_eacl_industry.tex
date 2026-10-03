@@ -43,10 +43,9 @@ adaptive-attack ablation, a standardised-benchmark reconstruction, and base-rate
 \emph{full reproducibility on a single free GPU}. We report security-grade metrics with 95\%
 confidence intervals: the CPU fast layer matches a GPU neural guard's obfuscation robustness at
 $\sim$8\,ms; against an adaptive attacker, normalisation alone leaves ASR at 1.00 while adversarial
-augmentation closes it to 0.03 at 1\% false-positive rate; on a NIST-AI-RMF guard benchmark the
-0.6B content guard Vyuha binds reaches 0.886 recall on complete-harmful-request axes --- on par with a
-7$\times$ larger model --- and Vyuha's selective cascade matches an 8B guard's recall while invoking it
-on only 20--30\% of benign traffic; and a session-level monitor catches 71\% of multi-turn (Crescendo) escalations a
+augmentation closes it to 0.03 at 1\% false-positive rate; on a NIST-AI-RMF guard benchmark our
+0.6B content guard reaches 0.886 recall on complete-harmful-request axes --- on par with a 7$\times$
+larger model; and a session-level monitor catches 71\% of multi-turn (Crescendo) escalations a
 per-message moderator catches 0\% of. We are explicit throughout about where stronger
 (white-box, formally verified, or paid-compute) work exists.
 \end{abstract}
@@ -247,69 +246,58 @@ is thresholded on its continuous score so that the union meets a fixed total ben
 between members, fixed before measurement), never a raw OR of hard verdicts, which inherits the
 loosest member's false-positive rate. Its measured value is reported with the baselines below.
 
-\paragraph{Cross-family guard comparison (matched FPR).} Table~\ref{tab:baselines} compares the guard
-Vyuha binds at L2 --- the off-the-shelf Qwen3Guard-Gen-0.6B; Vyuha's contribution is how it is composed,
-not the guard itself --- with five current open guards from four families (0.6B--8B), all scored
-identically on the six complete-harmful-request axes at matched benign FPR. Each guard is scored by the
-raw log-odds of its verdict tokens, read at the guard's \emph{own} verdict position (after Qwen3Guard's
+\paragraph{Cross-family guard comparison (matched FPR).} Table~\ref{tab:baselines} compares our 0.6B
+guard with five current open guards from four families (0.6B--8B), all scored identically on the six
+complete-harmful-request axes and compared at matched benign FPR. Each guard is scored by the raw
+log-odds of its verdict tokens, read at the guard's \emph{own} verdict position (after Qwen3Guard's
 \texttt{Safety:} prefix, Granite Guardian~4.1's empty \texttt{<think>} block and \texttt{<score>} tag,
-Llama Guard's leading newlines), and a row is admitted only if the sign of its score agrees with the
-guard's own generated verdict on $\geq$90\% of a 100-prompt check (observed 94--100\%). We rank on
-log-odds rather than sigmoid probabilities because saturated probabilities tie at the benign quantile
+Llama Guard's leading newlines), and a guard's row is admitted only if the sign of its score agrees with
+its own generated verdict on $\geq$90\% of a 100-prompt check (observed 94--100\% for all six). We rank
+on log-odds rather than sigmoid probabilities because saturated probabilities tie at the benign quantile
 and silently zero recall at strict FPR --- a pitfall we hit and corrected, and recommend guarding against
-in any matched-FPR comparison. Precision is matched: guards that fit a 16\,GB T4 in fp16 are compared in
-fp16, the 4B--8B guards in 4-bit against a 4-bit run of ours. Differences are tested with a paired,
-stratified bootstrap ($B{=}2000$) that re-estimates the FPR thresholds on every draw, so its intervals
-cover threshold noise as well as sampling noise.
+in any matched-FPR guard comparison.
 
-At matched precision, the 0.6B guard \emph{significantly} beats ShieldGemma-2B on all three metrics
-(AUC $+0.09$, recall $+0.25$ at 2\% and $+0.32$ at 5\% FPR) and the 13$\times$-larger Llama Guard~3 on
-AUC ($+0.19$) and recall at 5\% FPR ($+0.10$), tying it at 2\%. It is statistically indistinguishable
-from Granite Guardian~3.2 (3B, 0.8B active) in fp16 on all three metrics; in 4-bit, Granite~3.2 is
-significantly better at 2\% FPR ($-0.13$). Granite Guardian~4.1-8B and the 4B Qwen3Guard are
-significantly better on every metric. Four-bit quantisation itself costs the 0.6B guard little but not
-nothing (AUC $-0.006$, recall $-0.06$ at 5\% FPR), so the 4-bit 8B rows, if anything, slightly
-understate those guards. Per axis (5\% FPR), the 0.6B guard's weakest axis is hate speech (0.61, vs 0.85
-for Granite~4.1); ShieldGemma's near-zero hate-speech (0.03) and sexual-content (0.13) recall reflect
-its narrower four-category policy rather than model quality.
+Our 0.6B guard sits on the size--quality frontier. It beats the 2B ShieldGemma and the 13$\times$-larger
+Llama Guard~3 on ROC-AUC (0.92 vs 0.84 / 0.72) and on recall at 5\% FPR (0.73 vs 0.43 / 0.58), and
+matches Llama Guard~3 at 2\% FPR (0.54 vs 0.55). Against Granite Guardian~3.2 (3B, 0.8B active) it has
+higher AUC (0.92 vs 0.90) and equal recall at 5\% FPR, trailing at 2\% FPR (0.54 vs 0.61, overlapping
+CIs). The strongest guard measured is Granite Guardian~4.1 (8B; AUC 0.95, recall 0.80/0.90); the 4B
+Qwen3Guard in the \emph{same} L2 slot comes close (AUC 0.94, recall 0.81/0.86, overlapping CIs with
+Granite~4.1 at both points). Because L2 is a model-agnostic slot, a deployment buys recall with
+parameters by swapping the bound guard, with no other change to the stack. Per axis (at 5\% FPR), the
+0.6B guard's weakest axis is hate speech (0.61, vs 0.85 for Granite~4.1); ShieldGemma's near-zero
+hate-speech (0.03) and sexual-content (0.13) recall reflect its narrower four-category policy rather
+than model quality.
 
-\paragraph{Selective cascade.} Because the strongest guard is 13$\times$ larger, Vyuha's L2 cascade lets
-the 0.6B guard screen all traffic and escalates only its most suspicious share to the 8B guard, which
-decides; thresholds are set so the \emph{total} benign FPR matches the target. With escalation fixed in
-advance at 10/20/30\% of benign traffic (all reported), the cascade matches Granite~4.1-8B alone with no
-significant difference at 20\% and 30\% escalation (2\% FPR: 0.85 and 0.84 vs 0.80; 5\% FPR: 0.87 and 0.90
-vs 0.90), i.e.\ 8B-level recall while invoking the 8B guard on 70--80\% fewer benign requests; at 10\%
-escalation it is significantly worse at 5\% FPR ($-0.09$), so the escalation budget matters. By contrast,
-an OR-union of the two guards at a split FPR budget is \emph{worse} than Granite~4.1 alone (0.73 vs 0.80 at
-2\% FPR) because each member must run at a stricter threshold; unions help only between comparable
-members (ours OR Granite~3.2: 0.62, at least either alone). The operational rule: cascade to the
-strongest affordable guard; compose only peers.
+Calibrated composition helps when members are comparable and complementary, and not otherwise. Our
+guard OR Granite~3.2 reaches 0.62 [0.58,0.66] at 1.8\% FPR, at least as high as either member alone
+(0.54, 0.61); but splitting the 2\% budget with the dominant Granite~4.1 gives 0.73, \emph{below}
+Granite~4.1 alone (0.80), because each member must then run at a stricter 1\% threshold. The operational
+rule is: bind the strongest guard the latency and memory budget allows, and compose only comparable,
+complementary members.
 \begin{table*}[t]
 \centering\small
-\begin{tabular}{llrccc}
+\begin{tabular}{lrccc}
 \toprule
-Guard & Precision & Params & AUC & R@2\%FPR & R@5\%FPR \\
+Guard & Params & AUC & R@2\%FPR & R@5\%FPR \\
 \midrule
-Qwen3Guard-Gen-0.6B (Vyuha L2) & fp16 & 0.6B & \textbf{0.92} & 0.54 [0.49,0.58] & 0.73 [0.69,0.77] \\
-ShieldGemma            & fp16 & 2B   & 0.83$^{*}$ & 0.29 [0.25,0.33]$^{*}$ & 0.41 [0.37,0.45]$^{*}$ \\
-Granite Guardian 3.2   & fp16 & 3B$^\dagger$ & 0.91 & \textbf{0.64} [0.60,0.68] & \textbf{0.77} [0.73,0.81] \\
+Qwen3Guard-Gen (ours) & 0.6B & 0.92 & 0.54 [0.49,0.58] & 0.73 [0.69,0.77] \\
+ShieldGemma           & 2B   & 0.84 & 0.30 [0.26,0.34] & 0.43 [0.39,0.48] \\
+Granite Guardian 3.2  & 3B$^\dagger$ & 0.90 & 0.61 [0.57,0.65] & 0.73 [0.69,0.77] \\
+Llama Guard 3         & 8B   & 0.72 & 0.55 [0.50,0.59] & 0.58 [0.53,0.62] \\
+Granite Guardian 4.1  & 8B   & \textbf{0.95} & 0.80 [0.76,0.83] & \textbf{0.90} [0.87,0.92] \\
+Qwen3Guard-Gen (L2 slot) & 4B & 0.94 & \textbf{0.81} [0.78,0.84] & 0.86 [0.83,0.89] \\
 \midrule
-Qwen3Guard-Gen-0.6B (Vyuha L2) & 4-bit & 0.6B & 0.91 & 0.49 [0.44,0.53] & 0.68 [0.64,0.72] \\
-Llama Guard 3          & 4-bit & 8B   & 0.72$^{*}$ & 0.55 [0.50,0.59] & 0.58 [0.53,0.62]$^{*}$ \\
-Qwen3Guard-Gen (L2 slot) & 4-bit & 4B & 0.94$^{*}$ & \textbf{0.81} [0.78,0.84]$^{*}$ & 0.86 [0.83,0.89]$^{*}$ \\
-Granite Guardian 4.1   & 4-bit & 8B   & \textbf{0.95}$^{*}$ & 0.80 [0.76,0.83]$^{*}$ & \textbf{0.90} [0.87,0.92]$^{*}$ \\
-\midrule
-\multicolumn{6}{l}{\emph{Vyuha selective cascade: 0.6B screens all traffic, escalates a pre-set share of benign traffic to Granite~4.1}} \\
-\quad escalate 20\% & fp16+4-bit & --- & --- & 0.85 [0.82,0.88] & 0.87 [0.84,0.90] \\
-\quad escalate 30\% & fp16+4-bit & --- & --- & 0.84 [0.81,0.87] & 0.90 [0.87,0.92] \\
+\multicolumn{5}{l}{\emph{Calibrated L2 composition (ours OR partner, equal FPR split)}} \\
++ Granite Guardian 3.2 & --- & --- & 0.62 [0.58,0.66] & 0.74 [0.70,0.78] \\
++ Granite Guardian 4.1 & --- & --- & 0.73 [0.69,0.76] & 0.85 [0.82,0.88] \\
 \bottomrule
 \end{tabular}
 \caption{Matched-FPR guard comparison on the six complete-harmful-request axes (NIST-AI-RMF
-reconstruction, $n{=}507$ unsafe / $800$ benign; Wilson 95\% CIs on recall). Scores are raw verdict-token
-log-odds at each guard's own verdict position, each validated against the guard's generated verdict
-(94--100\% agreement). Bold: best per block. $^{*}$Significantly different from the 0.6B guard at the
-same precision (paired stratified bootstrap, $B{=}2000$, 95\%); unmarked differences are not significant.
-Neither cascade row differs significantly from Granite~4.1 alone. $^\dagger$Mixture-of-experts, 0.8B active.}
+reconstruction, $n{=}507$ unsafe / $800$ benign; Wilson 95\% CIs on recall). Scores are raw
+verdict-token log-odds read at each guard's own verdict position, each validated against the guard's
+generated verdict (94--100\% agreement). Achieved FPR is within 0.2 percentage points of target for every single
+guard and $\leq$ target for compositions. $^\dagger$Mixture-of-experts, 0.8B active parameters.}
 \label{tab:baselines}
 \end{table*}
 
@@ -356,8 +344,8 @@ the trade-off, because L1 is out-of-distribution and the cascade does not engage
 backends, that L3's deployable value is high-precision \emph{detection} (block/escalate), not in-place
 repair.
 \begin{table}[t]
-\centering\footnotesize\setlength{\tabcolsep}{3pt}
-\begin{tabular}{@{}llcc@{}}
+\centering\small
+\begin{tabular}{llcc}
 \toprule
 Backend & Metric & none [95\% CI] & Vyuha [95\% CI] \\
 \midrule
@@ -394,7 +382,7 @@ red-teaming, the PSI drift monitor, and the self-hardening loop support lifecycl
 attack mix shifts --- the operational-maturity concern this track foregrounds --- and every reported
 number is regenerable from versioned public notebooks, giving a simple audit trail.
 
-\begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{table}[t]\centering\small
 \begin{tabular}{@{}ll@{}}
 \toprule
 \textbf{OWASP LLM risk} & \textbf{Covered by} \\
@@ -474,11 +462,7 @@ no-defence baseline --- so we recommend deploying L3 as a high-precision block/e
 utility-preserving mitigation (e.g.\ dual-LLM quarantine) to future work. Our external head-to-head is
 measured on two target backends (Qwen-3-4B and Llama-3.1-8B) at $n{=}200$ each; still-larger backends
 and prompt sets are future work. The cross-family guard comparison is on one benchmark reconstruction (BeaverTails/RealToxicityPrompts
-prompts, $n{=}507$/800). Its FPR thresholds are fit on the same 800 benign prompts they are evaluated on
-(the bootstrap covers their noise, but a held-out calibration split would be stricter). BeaverTails
-prompts derive from HH-RLHF red-team data, which some guards (e.g.\ Granite Guardian) report training on,
-so absolute recalls may be optimistic for any guard. The 8B guards run in 4-bit on a T4; Llama Guard~4
-could not be loaded on our stack and is not included. Some
+prompts, $n{=}507$/800); Llama Guard~4 could not be loaded on our single-GPU stack and is not included. Some
 efficiency and attack-cost figures are estimates under a measured detection rate, labelled as such. No
 stack is unbreakable; Vyuha raises cost, it does not guarantee safety.
 

@@ -55,6 +55,7 @@ Each `notebooks/vyuha_P*.ipynb` is self-contained (clones the repo, installs lig
 - **P13** guard ensemble · **P14** adaptive (pairwise + genetic) robustness
 - **P15** NIST-RMF guard benchmark (+ section F: same-parameter-count baselines; cell E: calibrated ensemble)
 - **P16** PIArena head-to-head (+ section 8: scale across backends)
+- **Guard robustness checks (CPU, no GPU)**: `python tools/analyze_guard_scores.py` reads the committed raw scores `results/guard_scores_v2.csv` (idx, label, category, one column per guard run; prompts rebuild deterministically from the notebook's data cell) and reproduces per-axis significance and the held-out calibration analysis; output saved in `results/guard_analysis_v2.txt`.
 - **Guard comparison (paper Table 2)**: `notebooks/vyuha_guard_rescore_v2_colab.ipynb` (free Colab T4; scores all six guards by raw verdict-token log-odds with two validity gates, then the table + calibrated composition; scores saved to Drive, resumable)
 
 Gated models/datasets need an `HF_TOKEN` Kaggle secret; the PIArena judge needs a `GROQ_API_KEY`

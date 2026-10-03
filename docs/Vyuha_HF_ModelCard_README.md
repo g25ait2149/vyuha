@@ -129,6 +129,12 @@ Recall is reported at a fixed 1% FPR.
   traffic to Granite-4.1-8B (total FPR matched). At 20-30% escalation it matches Granite-4.1 alone with no
   significant difference (2% FPR: 0.85/0.84 vs 0.80; 5% FPR: 0.87/0.90 vs 0.90) - 8B-level recall with
   70-80% fewer 8B calls on benign traffic. At 10% escalation it is significantly worse at 5% FPR.
+- **Robustness checks (CPU, `tools/analyze_guard_scores.py` on `results/guard_scores_v2.csv`).** Held-out
+  calibration: thresholds fit on a random 400 benign prompts and evaluated on the other 400 (500 splits) leave
+  every guard's recall unchanged within 0.015, with achieved FPR 2.1-2.2% / 5.1-5.2% vs 2% / 5% targets; the
+  cascade's parity with Granite-4.1 holds. Per axis (matched precision, paired bootstrap): the 0.6B guard's edge
+  over ShieldGemma and Llama-Guard-3 is on hate speech (+0.57, +0.22) and sexual content (+0.66, +0.34); vs
+  Granite-3.2 it differs only on violence (-0.07); self-harm (n=15) cannot separate any pair.
 - **External head-to-head (PIArena, `squad_v2`/combined, independent GPT-OSS-120B judge, n=200 each)
   across TWO backends (Qwen-3-4B and Llama-3.1-8B):** L1 fires **0%** (out-of-distribution), but L3's
   injection scanner **detects 1.00 [0.98-1.00] at 0.5% FPR** (backend-independent) - defense-in-depth

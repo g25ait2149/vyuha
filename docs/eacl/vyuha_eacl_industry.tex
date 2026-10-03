@@ -269,9 +269,16 @@ from Granite Guardian~3.2 (3B, 0.8B active) in fp16 on all three metrics; in 4-b
 significantly better at 2\% FPR ($-0.13$). Granite Guardian~4.1-8B and the 4B Qwen3Guard are
 significantly better on every metric. Four-bit quantisation itself costs the 0.6B guard little but not
 nothing (AUC $-0.006$, recall $-0.06$ at 5\% FPR), so the 4-bit 8B rows, if anything, slightly
-understate those guards. Per axis (5\% FPR), the 0.6B guard's weakest axis is hate speech (0.61, vs 0.85
-for Granite~4.1); ShieldGemma's near-zero hate-speech (0.03) and sexual-content (0.13) recall reflect
-its narrower four-category policy rather than model quality.
+understate those guards. Per axis (5\% FPR, matched precision, same
+bootstrap), the 0.6B guard's advantage over ShieldGemma and Llama Guard~3 comes from hate speech ($+0.57$,
+$+0.22$) and sexual content ($+0.66$, $+0.34$), with no significant difference on the other axes; against
+Granite~3.2 it differs significantly only on violence ($-0.07$); Granite~4.1 and the 4B Qwen3Guard lead on
+every axis except self-harm, whose $n{=}15$ is too small to separate any pair. The 0.6B guard's weakest axes
+are hate speech (0.61) and health misinformation (0.54) --- exactly where the cascade's escalation target is
+strongest (0.85, 0.74). Held out, the thresholds transfer: fit on a random 400 of the benign prompts and
+evaluated on the other 400 (500 splits), every guard's recall is unchanged to within 0.015 and the achieved
+FPR averages 2.1--2.2\% / 5.1--5.2\% against 2\% / 5\% targets; the cascade's parity with Granite~4.1 also holds
+(2\% FPR, 20\% escalation: 0.85 vs 0.80).
 
 \paragraph{Selective cascade.} Because the strongest guard is 13$\times$ larger, Vyuha's L2 cascade lets
 the 0.6B guard screen all traffic and escalates only its most suspicious share to the 8B guard, which
@@ -474,8 +481,8 @@ no-defence baseline --- so we recommend deploying L3 as a high-precision block/e
 utility-preserving mitigation (e.g.\ dual-LLM quarantine) to future work. Our external head-to-head is
 measured on two target backends (Qwen-3-4B and Llama-3.1-8B) at $n{=}200$ each; still-larger backends
 and prompt sets are future work. The cross-family guard comparison is on one benchmark reconstruction (BeaverTails/RealToxicityPrompts
-prompts, $n{=}507$/800). Its FPR thresholds are fit on the same 800 benign prompts they are evaluated on
-(the bootstrap covers their noise, but a held-out calibration split would be stricter). BeaverTails
+prompts, $n{=}507$/800). With 400 benign prompts per calibration half, the achieved FPR at a 2\% target
+varies from 0.5\% to 4.8\% across splits, so deployments should calibrate on far more benign traffic. BeaverTails
 prompts derive from HH-RLHF red-team data, which some guards (e.g.\ Granite Guardian) report training on,
 so absolute recalls may be optimistic for any guard. The 8B guards run in 4-bit on a T4; Llama Guard~4
 could not be loaded on our stack and is not included. Some

@@ -98,6 +98,17 @@ _SHIELDGEMMA_GUIDELINE = (
     'hateful, harassing, sexually explicit, or that facilitates harm to people.'
 )
 
+# Minimal, GUARD-SPECIFIC verdict vocabularies for proba_logit (single-forward-pass continuous score).
+# Scoring on ONLY the tokens a guard actually emits avoids the cross-token pollution that corrupts a
+# guard whose verdict space is just Yes/No (e.g. ShieldGemma) when scored with the generic unsafe/safe
+# lists. Keyed by a substring of the model id; falls back to a Yes/No + unsafe/safe union.
+_VERDICT_VOCAB = {
+    "shieldgemma": (("Yes",), ("No",)),
+    "granite-guardian": (("Yes",), ("No",)),
+    "llama-guard": (("unsafe",), ("safe",)),
+}
+_VERDICT_VOCAB_DEFAULT = (("Yes", "unsafe"), ("No", "safe"))
+
 
 def _wildguard_unsafe(verdict):
     """WildGuard emits 'Harmful request: yes/no\\nResponse refusal: ...\\nHarmful response: ...'. Read the
@@ -199,6 +210,8 @@ class OpenGuard:
         the throughput killer (~1.6k sequential calls = hours); batching with left-padding is 10-30x
         faster. Shared by proba() (hard label) and verdict_categories() (3-way label)."""
         import torch
+        if not self._ready:          # allow direct calls (e.g. a smoke test) without a prior proba()
+            self.load()
         tok = self.tok
         mid = self.model_id.lower()
         prompts = []
@@ -323,6 +336,74 @@ class OpenGuard:
                 if p_unsafe is None:                   # no clear verdict token -> hard fallback
                     p_unsafe = float(_verdict_unsafe(tok.decode(seqs[b], skip_special_tokens=True)))
                 out.append(p_unsafe)
+        return np.array(out)
+
+    def proba_logit(self, texts, batch_size=8, max_length=512):
+        """Continuous P(unsafe) from the FIRST-token verdict LOGITS via a single forward pass (no
+        generation). This is the correct continuous score for guards whose verdict is the first
+        generated token (ShieldGemma Yes/No, Llama Guard safe/unsafe, Granite Yes/No); for guards that
+        emit a prefix before the verdict (e.g. Qwen3Guard's 'Safety: ...') use proba_soft instead.
+
+        Unlike proba_soft, it uses GUARD-SPECIFIC verdict tokens (Yes/No for ShieldGemma), so one guard's
+        vocabulary never pollutes another's -- the bug that made ShieldGemma's generic-wordlist score
+        degenerate. Validated by reconciliation: (proba_logit >= 0.5) reproduces the greedy hard verdict's
+        recall (ShieldGemma 6-axis 0.438 vs hard 0.432). Uses logits_to_keep=1 so only the last-token
+        logits are materialised (no full-sequence-logits OOM); left padding puts the verdict at index -1.
+        """
+        if not self._ready:
+            self.load()
+        if self.mode == "classifier":
+            return self.proba(texts, batch_size=batch_size)
+        import torch
+        tok, dev, mid = self.tok, self.model.device, self.model_id.lower()
+        uw, sw = _VERDICT_VOCAB_DEFAULT
+        for key, (u, s) in _VERDICT_VOCAB.items():
+            if key in mid:
+                uw, sw = u, s
+                break
+
+        def _ids(words):
+            out = set()
+            for w in words:
+                for form in (w, " " + w):
+                    e = tok(form, add_special_tokens=False).input_ids
+                    if e:
+                        out.add(e[0])
+            return sorted(out)
+
+        u_idx = torch.tensor(_ids(uw), device=dev)
+        s_idx = torch.tensor(_ids(sw), device=dev)
+        sg = "shieldgemma" in mid
+        texts = list(texts)
+        idxs = range(0, len(texts), batch_size)
+        if len(texts) > batch_size:
+            try:
+                from tqdm.auto import tqdm
+                idxs = tqdm(list(idxs), desc=f"{self.name} logit-scoring", unit="batch")
+            except Exception:
+                pass
+        out = []
+        for i in idxs:
+            prompts = []
+            for t in texts[i:i + batch_size]:
+                try:
+                    kw = {"guideline": _SHIELDGEMMA_GUIDELINE} if sg else {}
+                    prompts.append(tok.apply_chat_template([{"role": "user", "content": t}],
+                                                           add_generation_prompt=True, tokenize=False, **kw))
+                except Exception:
+                    prompts.append(t)
+            enc = tok(prompts, return_tensors="pt", padding=True, truncation=True,
+                      max_length=max_length).to(dev)
+            with torch.no_grad():
+                nt = self.model(**enc, logits_to_keep=1).logits[:, -1, :]   # last-token logits only
+            lu = torch.logsumexp(nt[:, u_idx].float(), dim=1)
+            ls = torch.logsumexp(nt[:, s_idx].float(), dim=1)
+            out.extend(torch.sigmoid(lu - ls).cpu().numpy().tolist())
+            del enc, nt
+            try:
+                torch.cuda.empty_cache()
+            except Exception:
+                pass
         return np.array(out)
 
     def proba_response(self, prompts, responses, batch_size=16):

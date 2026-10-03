@@ -221,13 +221,12 @@ class OpenGuard:
                 continue
             try:
                 if "shieldgemma" in mid:                  # ShieldGemma's template needs a policy guideline
-                    kw = {"guideline": _SHIELDGEMMA_GUIDELINE}
-                elif "granite-guardian" in mid:           # Granite needs a guardian risk, else it refuses
-                    kw = {"guardian_config": {"risk_name": "harm"}}
+                    prompts.append(tok.apply_chat_template([{"role": "user", "content": t}],
+                                                           guideline=_SHIELDGEMMA_GUIDELINE,
+                                                           add_generation_prompt=True, tokenize=False))
                 else:
-                    kw = {}
-                prompts.append(tok.apply_chat_template([{"role": "user", "content": t}],
-                                                       add_generation_prompt=True, tokenize=False, **kw))
+                    prompts.append(tok.apply_chat_template([{"role": "user", "content": t}],
+                                                           add_generation_prompt=True, tokenize=False))
             except Exception:
                 prompts.append(t)
         idxs = range(0, len(prompts), batch_size)
@@ -374,16 +373,7 @@ class OpenGuard:
 
         u_idx = torch.tensor(_ids(uw), device=dev)
         s_idx = torch.tensor(_ids(sw), device=dev)
-        # Guard-specific chat-template kwargs so each guard is actually invoked in CLASSIFIER mode:
-        # ShieldGemma needs a policy `guideline`; Granite Guardian needs a `guardian_config` risk (without
-        # it, Granite acts as a chat model and refuses instead of classifying). Llama Guard's template
-        # needs nothing extra.
-        if "shieldgemma" in mid:
-            tmpl_kw = {"guideline": _SHIELDGEMMA_GUIDELINE}
-        elif "granite-guardian" in mid:
-            tmpl_kw = {"guardian_config": {"risk_name": "harm"}}
-        else:
-            tmpl_kw = {}
+        sg = "shieldgemma" in mid
         texts = list(texts)
         idxs = range(0, len(texts), batch_size)
         if len(texts) > batch_size:
@@ -397,8 +387,9 @@ class OpenGuard:
             prompts = []
             for t in texts[i:i + batch_size]:
                 try:
+                    kw = {"guideline": _SHIELDGEMMA_GUIDELINE} if sg else {}
                     prompts.append(tok.apply_chat_template([{"role": "user", "content": t}],
-                                                           add_generation_prompt=True, tokenize=False, **tmpl_kw))
+                                                           add_generation_prompt=True, tokenize=False, **kw))
                 except Exception:
                     prompts.append(t)
             enc = tok(prompts, return_tensors="pt", padding=True, truncation=True,

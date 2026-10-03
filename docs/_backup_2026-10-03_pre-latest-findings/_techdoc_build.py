@@ -308,7 +308,7 @@ H.append('<ul>'
          'full-width Unicode, and <i>stacked</i> combinations (e.g. zero-width <b>and</b> spacing at once).</li>'
          '<li><b>Semantic attacks</b> — meaning-preserving rewrites with no surface tell: attacker-LLM refinement (PAIR, TAP) and human-style persuasion (PAP).</li>'
          '<li><b>Indirect / agent injection</b> — instructions hidden in retrieved documents, web pages, or tool outputs that hijack an agent&rsquo;s tools.</li>'
-         '<li><b>Output-side failures</b> — PII leaks, leaked secrets, system-prompt leakage, harmful compliance.</li></ul>')
+         '<li><b>Multilingual attacks</b> and <b>output-side failures</b> — PII leaks, leaked secrets, system-prompt leakage, harmful compliance.</li></ul>')
 H.append('<p><b>Out of scope:</b> attacks on the model weights, host infrastructure, or human operator. The goal is not perfection — it is to <b>raise the '
          'attacker&rsquo;s cost</b> and <b>shrink the attack surface</b> of every channel. A single classifier is a <i>fixed target</i>; the 2025–26 '
          '&ldquo;attacker-moves-second&rdquo; result breaks a dozen published defences at &gt;90% success, which is why layering plus a continuous red-team is the only durable answer.</p>')
@@ -515,12 +515,7 @@ H.append(table(
       "[0.98&ndash;1.00] at 0.5% FPR &mdash; defense-in-depth covering L1&rsquo;s blind spot. <b>Auto-mitigation is "
       "an open problem</b>: sanitize takes ASR 0.905&rarr;0.630 (utility 0.535&rarr;0.210), spotlight ASR&rarr;0.485 "
       "(utility&rarr;0.154) &mdash; both below the no-defence utility, so deploy L3 as a high-precision block/escalate "
-      "gate, not auto-repair (the null generalises across backends)", "PIArena squad_v2/combined, two backends "
-      "(Qwen-3-4B, Llama-3.1-8B), independent GPT-OSS-120B judge, n=200 each"],
-     ["Same-param guard comparison (matched FPR)", "our 0.6B guard beats the 3&times; larger ShieldGemma-2B on "
-      "<b>ROC-AUC 0.93 vs 0.84</b> (0.88 vs 0.73 overall) and <b>recall 0.73 vs 0.43 at 5% FPR</b>; comparable at "
-      "2% FPR, where ShieldGemma has plateaued near its four-category policy ceiling", "NIST-RMF reconstruction, "
-      "six harm axes, continuous scores, matched FPR; reconciliation check passed"]]))
+      "gate, not auto-repair", "PIArena squad_v2/combined, Qwen-3-4B target, independent GPT-OSS-120B judge, n=200"]]))
 H.append('<h2>8 · How Vyuha compares, and how it meets standards</h2>')
 H.append('<h3>8.1 · Versus existing solutions</h3>')
 H.append('<ul>'
@@ -571,7 +566,7 @@ H.append('<ul>'
          '<li>A <b>capability-based agent defense</b> (CaMeL-style) with provenance guarantees for L3.</li>'
          '<li>A <b>calibrated content guard</b> as the L4 response scorer (e.g. Llama Guard) where compute allows.</li>'
          '<li>A <b>direct, large-n AgentDojo / attack-efficiency measurement</b> on a paid backend (estimated cost only a few dollars).</li>'
-         '<li><b>A dedicated multilingual guard</b> (a separate follow-up paper); and wiring in Presidio/NER for higher-recall PII.</li></ul>')
+         '<li><b>Native multilingual guard training</b>; and wiring in Presidio/NER for higher-recall PII.</li></ul>')
 
 # 11 reproducibility
 H.append('<h2>11 · Reproducibility</h2>')

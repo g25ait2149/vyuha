@@ -52,7 +52,7 @@ Performance varies by: attack family (persona vs. encoded vs. indirect), **langu
 
 ## Metrics
 
-Security-grade, not plain accuracy: **ROC-AUC**, **recall @ 1% FPR**, **FPR @ 95% TPR**, **over-refusal (FRR)**, **attack-success-rate (ASR)**, F1, latency. Output moderation: flag **precision/recall**. Robustness: **ASR per red-team mutator**. Guard comparison: **ROC-AUC** and **recall at matched FPR**. Rationale: at scale a high false-positive rate is the dominant cost, so recall is reported *at a fixed low FPR* rather than at the default threshold.
+Security-grade, not plain accuracy: **ROC-AUC**, **recall @ 1% FPR**, **FPR @ 95% TPR**, **over-refusal (FRR)**, **attack-success-rate (ASR)**, F1, latency. Output moderation: flag **precision/recall**. Robustness: **ASR per red-team mutator**. Multilingual: **macro-recall** across languages. Rationale: at scale a high false-positive rate is the dominant cost, so recall is reported *at a fixed low FPR* rather than at the default threshold.
 
 ## Training & evaluation data
 
@@ -114,19 +114,13 @@ Recall is reported at a fixed 1% FPR.
   0.87-1.00]** at **0** false positives (benign pass 1.00 [0.88-1.00]); the **instruction-hierarchy**
   tool policy additionally hard-blocks a dangerous action that appears on a tainted turn and was not in
   the user's stated intent (injected-action), rather than merely asking for confirmation.
-- **Same-parameter-count guard comparison (matched FPR).** On the six complete-harmful-request axes,
-  scored continuously and compared at a matched benign FPR, our 0.6B guard beats the **3x larger
-  ShieldGemma-2B** on **ROC-AUC (0.93 vs 0.84; 0.88 vs 0.73 overall)** and recall at a **5% FPR** point
-  (**0.73 vs 0.43**); comparable at 2% FPR (ShieldGemma has plateaued near its four-category ceiling).
-  Reconciliation check: continuous@0.5 recall 0.438 matches the hard verdict's 0.432.
-- **External head-to-head (PIArena, `squad_v2`/combined, independent GPT-OSS-120B judge, n=200 each)
-  across TWO backends (Qwen-3-4B and Llama-3.1-8B):** L1 fires **0%** (out-of-distribution), but L3's
-  injection scanner **detects 1.00 [0.98-1.00] at 0.5% FPR** (backend-independent) - defense-in-depth
-  covering L1's blind spot, confirmed across backends. **Auto-mitigation is an open problem (reported
-  honestly):** sanitize takes ASR **0.905 -> 0.630** (utility 0.535 -> 0.210); spotlighting ASR **-> 0.485**
-  (utility -> 0.154, the model over-refuses) - both below the no-defense utility, and the null generalises
-  across backends. Deploy L3 as a **high-precision block/escalate gate**, not silent auto-repair;
-  utility-preserving mitigation (e.g. dual-LLM quarantine) is future work.
+- **External head-to-head (PIArena, `squad_v2`/combined, Qwen-3-4B target, independent GPT-OSS-120B judge,
+  n=200):** L1 fires **0%** (out-of-distribution), but L3's injection scanner **detects 1.00 [0.98-1.00]
+  at 0.5% FPR** - defense-in-depth covering L1's blind spot. **Auto-mitigation is an open problem
+  (reported honestly):** sanitize takes ASR **0.905 -> 0.630** (utility 0.535 -> 0.210); spotlighting ASR
+  **-> 0.485** (utility -> 0.154, the model over-refuses) - both below the no-defense utility. Deploy L3
+  as a **high-precision block/escalate gate**, not silent auto-repair; utility-preserving mitigation
+  (e.g. dual-LLM quarantine) is future work.
 - **L4 output:** flag **precision = recall = F1 = 1.00** on the labeled leak/harm probe. Response-harm
   is scored by the **content guard** (Qwen3Guard) on the (prompt, response) pair, not the L1 detector:
   on a small cue-less harmful-compliance contrast set (illustrative, n=5) the content guard scores

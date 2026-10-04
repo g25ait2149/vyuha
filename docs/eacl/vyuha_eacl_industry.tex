@@ -19,6 +19,9 @@
 \pgfplotsset{compat=1.18}
 % Unmistakable placeholder for results still pending a compute run. MUST NOT survive to submission.
 \newcommand{\pending}{\textbf{[TBD]}}
+% Anonymous code artifact for review. UPDATE to the exact 4open.science URL once the mirror is created;
+% at camera-ready, replace with the public GitHub/Hugging Face links.
+\newcommand{\artifacturl}{\url{https://anonymous.4open.science/r/vyuha-ANON}}
 \usepackage{url}
 
 \title{Vyuha: A Reproducible, Free-Compute Layered Guardrail for Deploying\\
@@ -140,8 +143,8 @@ compositions of known evasions --- both an exhaustive pairwise sweep and a harde
 rather than reporting a static per-mutator number that understates the attack surface. \textbf{(4) Standardised benchmark.} We score
 the content guard on the 8 NIST-AI-RMF safety categories following \citet{guard-bench}.
 \textbf{(5) Base-rate and contamination discipline.} Benign controls are drawn from real user
-prompts; benchmark sets are held test-only. All numbers reproduce from public notebooks on a single
-Kaggle T4.
+prompts; benchmark sets are held test-only. All numbers reproduce from the notebooks, raw scores and analysis scripts in our anonymised artifact
+(\artifacturl) on a single free T4 GPU (Kaggle or Colab).
 
 \section{Results}
 Table~\ref{tab:main} summarises the measured results; all proportions carry 95\% confidence intervals.
@@ -167,8 +170,8 @@ Multi-turn (L5) & session detect & \textbf{0.71} [0.65,0.77] \\
 Output (L4) & leak/harm F1 & \textbf{1.00} \\
 \bottomrule
 \end{tabular}
-\caption{Vyuha, security-grade metrics with 95\% CIs. Every value reproduces from public notebooks
-on a single free GPU.}
+\caption{Vyuha, security-grade metrics with 95\% CIs. Every value reproduces from the anonymised
+artifact on a single free GPU.}
 \label{tab:main}
 \end{table}
 
@@ -399,7 +402,8 @@ total operating cost; recall is then reported at that operating point rather tha
 functions (Table~\ref{tab:gov}); risks outside scope are named rather than papered over. Continuous
 red-teaming, the PSI drift monitor, and the self-hardening loop support lifecycle maintenance as the
 attack mix shifts --- the operational-maturity concern this track foregrounds --- and every reported
-number is regenerable from versioned public notebooks, giving a simple audit trail.
+number is regenerable from the versioned notebooks and committed raw scores in the artifact, giving a
+simple audit trail.
 
 \begin{table}[t]\centering\footnotesize\setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}ll@{}}

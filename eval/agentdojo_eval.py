@@ -10,7 +10,13 @@ L3 injection defense against the undefended agent:
 The L3 defense is our `InjectionScanner` wrapped as an AgentDojo `PromptInjectionDetector`: it scans
 each tool output (de-obfuscated at L0 first) and, on a hit, SANITIZES it - stripping only the injected
 instruction sentences while keeping the benign tool data (the CommandSans pattern), so the agent can
-still finish the task. `security = fraction of injections that FAILED`; `ASR = 1 - security`.
+still finish the task.
+
+METRIC CONVENTION (fixed 2026-10-05): AgentDojo's per-episode `security` flag is True when the
+INJECTION GOAL WAS EXECUTED (attack succeeded; errors are also scored True, conservatively). So
+`injection ASR = mean(security flags)` and our reported `security = 1 - ASR` (share of injections that
+failed). An earlier version inverted this; any result produced before the fix must be re-measured.
+Sanity anchor: an agent that never calls a tool must score ASR 0 (tests/test_agentdojo_metric.py).
 
 Backend: a **free Gemini AI-Studio key** (not Vertex). AgentDojo's built-in `google` provider forces
 `vertexai=True` (needs a paid GCP project), so we construct `GoogleLLM` with an AI-Studio client and
@@ -52,6 +58,8 @@ _PROVIDERS = {
     "groq":       ("https://api.groq.com/openai/v1", "GROQ_API_KEY", "openai/gpt-oss-20b"),
     "cerebras":   ("https://api.cerebras.ai/v1", "CEREBRAS_API_KEY", "llama-3.3-70b"),
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "meta-llama/llama-3.3-70b-instruct"),
+    # paid pay-as-you-go host of the open-weight gpt-oss models (no daily cap; use budget_usd=)
+    "deepinfra":  ("https://api.deepinfra.com/v1/openai", "DEEPINFRA_API_KEY", "openai/gpt-oss-120b"),
     # Gemini works for LISTING but 3.x models 400 on multi-turn tool calls (thought_signature),
     # which AgentDojo can't round-trip - kept for reference, not recommended for this benchmark.
     "gemini":     ("https://generativelanguage.googleapis.com/v1beta/openai/", "GEMINI_API_KEY", "gemini-flash-latest"),
@@ -71,6 +79,33 @@ def list_models(provider="groq", api_key=None, base_url=None):
     for i in ids:
         print("  ", i)
     return ids
+
+
+# Token/cost meter shared across calls (paid providers). price_* are USD per 1M tokens.
+USAGE = {"prompt": 0, "completion": 0, "calls": 0, "usd": 0.0}
+
+
+class BudgetExceeded(RuntimeError):
+    """Raised before a call once the configured spend cap is reached (stops the run cleanly)."""
+
+
+def _meter_client(client, budget_usd=None, price_in=0.0, price_out=0.0):
+    """Wrap client.chat.completions.create to count tokens, estimate cost, and enforce a hard cap."""
+    orig = client.chat.completions.create
+
+    def create(*a, **k):
+        if budget_usd is not None and USAGE["usd"] >= budget_usd:
+            raise BudgetExceeded(f"spend cap ${budget_usd:.2f} reached (est. ${USAGE['usd']:.3f})")
+        r = orig(*a, **k)
+        u = getattr(r, "usage", None)
+        if u is not None:
+            pt, ct = int(getattr(u, "prompt_tokens", 0) or 0), int(getattr(u, "completion_tokens", 0) or 0)
+            USAGE["prompt"] += pt; USAGE["completion"] += ct
+            USAGE["usd"] += pt / 1e6 * price_in + ct / 1e6 * price_out
+        USAGE["calls"] += 1
+        return r
+    client.chat.completions.create = create
+    return client
 
 
 def _ad_cache_path(logdir, suite, model, attack, defended):
@@ -100,7 +135,8 @@ def _ad_save_cache(path, data):
 def run_agentdojo_l3(api_key=None, provider="groq", model=None, base_url=None,
                      suite_name="banking", attack_name="important_instructions", version="v1.2.2",
                      n_user_tasks=2, n_injection_tasks=1, raise_on_injection=False,
-                     rpm_interval=2.0, max_retries=4, logdir="agentdojo_runs", resume=True, verbose=True):
+                     rpm_interval=2.0, max_retries=4, logdir="agentdojo_runs", resume=True, verbose=True,
+                     budget_usd=None, price_in=0.0, price_out=0.0):
     """Baseline vs Vyuha-L3 on an AgentDojo suite subset. Returns a dict of per-arm
     {utility_under_attack, injection_asr, security, n}. Heavy imports are lazy so importing this
     module never requires agentdojo/google to be installed."""
@@ -161,6 +197,8 @@ def run_agentdojo_l3(api_key=None, provider="groq", model=None, base_url=None,
                 except Exception as e:
                     s = str(e).lower()
                     # every retry also counts against the daily quota, so retry only a few times.
+                    if isinstance(e, BudgetExceeded) or "spend cap" in s:
+                        raise
                     if any(t in s for t in ("429", "resource_exhausted", "rate limit", "quota", "exhausted")):
                         wait = min(30, 10 * (attempt + 1))
                         if verbose:
@@ -172,7 +210,8 @@ def run_agentdojo_l3(api_key=None, provider="groq", model=None, base_url=None,
                 f"Hit the free-tier request cap for {model} (daily/RPM). Try a fresh model bucket "
                 "or wait for the midnight-Pacific reset; the logdir caches completed tasks so it resumes.")
 
-    client = openai.OpenAI(api_key=api_key, base_url=base_url)
+    client = _meter_client(openai.OpenAI(api_key=api_key, base_url=base_url, max_retries=2),
+                           budget_usd=budget_usd, price_in=price_in, price_out=price_out)
     llm = _RateLimitedLLM(client, model)
 
     # ---- Vyuha L3 as an AgentDojo prompt-injection detector -------------------------------
@@ -242,24 +281,34 @@ def run_agentdojo_l3(api_key=None, provider="groq", model=None, base_url=None,
                     if resume:
                         _ad_save_cache(cache_path, cache)          # incremental, interruption-safe
                     util_vals += uv; sec_vals += sv; ran += 1
+                except BudgetExceeded as e:
+                    if verbose:
+                        print(f"    [budget] {e} - stopping; completed tasks are cached, re-run to resume")
+                    break
                 except Exception as e:
+                    if "spend cap" in str(e):              # BudgetExceeded re-wrapped by the pipeline
+                        if verbose:
+                            print(f"    [budget] {str(e)[:120]} - stopping; re-run to resume")
+                        break
                     skipped += 1
                     if verbose:
                         print(f"    [skip] {uid}: {str(e)[:90]}")
         util = sum(util_vals) / max(len(util_vals), 1)
-        sec = sum(sec_vals) / max(len(sec_vals), 1)
+        # sec_vals hold AgentDojo's raw flags: True = injection goal executed (attack SUCCEEDED)
+        asr = sum(sec_vals) / max(len(sec_vals), 1)
+        sec = 1.0 - asr                                     # share of injections that FAILED
         label = "Vyuha L3" if defended else "undefended"
-        out[label] = {"utility_under_attack": round(util, 3), "injection_asr": round(1.0 - sec, 3),
+        out[label] = {"utility_under_attack": round(util, 3), "injection_asr": round(asr, 3),
                       "security": round(sec, 3), "n": len(sec_vals), "skipped": skipped, "new_this_pass": ran}
         if verbose:
-            print(f"  {label:<11} utility-under-attack={util:.2f}  injection ASR={1.0 - sec:.2f}  "
+            print(f"  {label:<11} utility-under-attack={util:.2f}  injection ASR={asr:.2f}  "
                   f"(n={out[label]['n']}, new-this-pass={ran}, skipped={skipped})")
 
     if verbose and {"undefended", "Vyuha L3"} <= set(out):
         u, v = out["undefended"], out["Vyuha L3"]
         print(f"\nL3 effect: injection ASR {u['injection_asr']:.2f} -> {v['injection_asr']:.2f}; "
               f"utility-under-attack {u['utility_under_attack']:.2f} -> {v['utility_under_attack']:.2f}")
-        print("(security = fraction of injections that FAILED; ASR = 1 - security. "
+        print("(ASR = share of episodes where the injection goal was executed; security = 1 - ASR. "
               "For a fair CaMeL comparison, cite its published ~67% AgentDojo mitigation - same-backend "
               "reproduction needs a more capable agent.)")
     return out

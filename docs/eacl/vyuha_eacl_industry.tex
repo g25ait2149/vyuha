@@ -163,7 +163,7 @@ Adaptive (L1) & ASR, L0 only & 1.00 [0.97,1.00] \\
 Semantic (L2) & PAIR recall & \textbf{0.90} (L1: 0.07) \\
 NIST-RMF (L2) & recall, req.\ axes & \textbf{0.886} ($\approx$4B: 0.84) \\
  & benign FPR & 0.071 \\
-Agent inj.\ (L3) & AgentDojo ASR & 1.00\,$\rightarrow$\,\textbf{0.00} \\
+Agent inj.\ (L3) & AgentDojo ASR & \pending \\
 MCP poison (L3) & detection & \textbf{1.00} [0.87,1.00] \\
 Multi-turn (L5) & session detect & \textbf{0.71} [0.65,0.77] \\
  & per-message & 0.00 \\
@@ -323,8 +323,10 @@ Neither cascade row differs significantly from Granite~4.1 alone. $^\dagger$Mixt
 \label{tab:baselines}
 \end{table*}
 
-\paragraph{Agent and multi-turn defense (L3, L5).} On AgentDojo (banking, \emph{important\_instructions}),
-L3 drives injection ASR to 0.00 on both a weak and a strong open agent; injection-under-obfuscation
+\paragraph{Agent and multi-turn defense (L3, L5).} On AgentDojo (all four suites, \emph{important\_instructions},
+gpt-oss-120b agent; injection ASR is the share of episodes in which the injection goal was executed, with
+errored episodes counted as successful attacks), L3 changes injection ASR from \pending{} to \pending{} at
+utility-under-attack \pending{} vs.\ \pending; injection-under-obfuscation
 detection is 1.00 versus 0.00--0.17 for a regex baseline. The MCP scanner detects 1.00 [0.87,1.00] of
 poisoned tool metadata at zero false positives on 25 poisoned / 27 benign tools. The session-level
 monitor flags 71\% [0.65,0.77] of modeled Crescendo escalations at 0\% benign FPR, versus 0\% for a
@@ -466,8 +468,8 @@ and a standardised benchmark, so that its real strengths and limits are visible 
 The surface detector (L1) does not and should not catch harmful-topic or semantic attacks; those
 depend entirely on the composed content guard, whose semantic ceiling we do not improve upon. Our own
 fine-tuned guard is jailbreak-only. The agent layer (L3) is a lightweight black-box approximation
-without the provenance guarantees of capability-based defenses; the AgentDojo arm's $n$ is small
-(free-tier quota) and a same-backend comparison to CaMeL's published mitigation needs paid compute.
+without the provenance guarantees of capability-based defenses; AgentDojo is run with a single agent model,
+and a same-backend comparison to CaMeL's published mitigation is left to future work.
 The NIST-RMF result is an indicative reconstruction, not the official 79{,}331-sample split, and the
 two toxicity-prefix axes are short fragments a request-focused guard reasonably under-flags. The
 Crescendo result is on modeled score trajectories. Our adaptive attacker searches over

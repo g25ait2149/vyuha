@@ -63,9 +63,9 @@ Recall is reported at a fixed 1% FPR.
   but **adaptive** ASR stays **1.00 [0.97, 1.00]** (the attacker-moves-second premium); adversarial
   augmentation closes it - RJD-v2 holds adaptive ASR to **0.03 [0.01, 0.08]** at **1%** benign FPR.
   A harder **genetic** attacker (deep transform chains + crossover, ~110 queries/seed) confirms this:
-  the full detector holds at **0.07 [0.04, 0.12]** (statistically indistinguishable from the pairwise
-  0.03), while **augmentation alone collapses to 0.92 [0.86, 0.95]** under the genetic search (vs 0.25
-  pairwise) - showing L0 normalization is far more load-bearing than the pairwise ablation implied, and
+  over **five independent attacker seeds** the full detector holds at **0.08 [0.06, 0.10]** pooled (0.07-0.09
+  per seed; an attacker allowed all five seeds evades only 0.09), while **augmentation alone collapses to
+  0.75 [0.72, 0.78]** pooled (seed-dependent 0.58-0.99; **1.00** for the five-seed attacker; vs 0.25 pairwise) - showing L0 normalization is far more load-bearing than the pairwise ablation implied, and
   neither L0 nor augmentation is sufficient alone. Both earn their place.
 - **L1 ensemble (Vyuha-Fast) - NOT the default:** adding a semantic + signature signal raises
   over-refusal to **FRR 0.175** for negligible gain (its templates false-fire on benign text), so
@@ -113,6 +113,10 @@ Recall is reported at a fixed 1% FPR.
   traffic to Granite-4.1-8B (total FPR matched). At 20-30% escalation it matches Granite-4.1 alone with no
   significant difference (2% FPR: 0.85/0.84 vs 0.80; 5% FPR: 0.87/0.90 vs 0.90) - 8B-level recall with
   70-80% fewer 8B calls on benign traffic. At 10% escalation it is significantly worse at 5% FPR.
+- **Latency (one T4, batch 1, mean over 200 benchmark prompts).** Qwen3Guard-0.6B 66 ms (fastest guard measured,
+  1.8 GB); ShieldGemma-2B 117 ms; Granite-3.2 162 ms; Qwen3Guard-4B 440 ms; Granite-4.1-8B 595 ms; Llama-Guard-3-8B
+  593 ms. The 0.6B->Granite-4.1 cascade at 20% escalation averages 189-206 ms per request (1-5% harmful
+  traffic): 8B-level recall at about a third of the 8B guard's latency.
 - **Robustness checks (CPU, `tools/analyze_guard_scores.py` on `results/guard_scores_v2.csv`).** Held-out
   calibration: thresholds fit on a random 400 benign prompts and evaluated on the other 400 (500 splits) leave
   every guard's recall unchanged within 0.015, with achieved FPR 2.1-2.2% / 5.1-5.2% vs 2% / 5% targets; the

@@ -494,9 +494,9 @@ H.append(table(
     ["Axis / claim", "Result (95% CI)", "Tested on"],
     [["Adaptive robustness (C4)", "L0-only: static ASR 0.02 but adaptive <b>1.00</b> [0.97&ndash;1.00] "
       "(<b>+0.98</b> &ldquo;attacker-moves-second&rdquo; premium); full RJD-v2 (L0+aug) adaptive <b>0.03</b> "
-      "[0.01&ndash;0.08] at 1% FPR, and <b>0.07</b> [0.04&ndash;0.12] under a harder <b>genetic</b> attacker "
-      "(deep chains + crossover, ~110 queries/seed) &mdash; it holds. Augmentation alone: 0.25 pairwise but "
-      "<b>0.92</b> [0.86&ndash;0.95] genetic &mdash; so L0 is heavily load-bearing and neither component is "
+      "[0.01&ndash;0.08] at 1% FPR, and <b>0.08</b> [0.06&ndash;0.10] under a harder <b>genetic</b> attacker "
+      "pooled over 5 attacker seeds (0.07&ndash;0.09 per seed) &mdash; it holds. Augmentation alone: 0.25 pairwise but "
+      "<b>0.75</b> [0.72&ndash;0.78] genetic (1.00 for a 5-seed attacker) &mdash; so L0 is heavily load-bearing and neither component is "
       "sufficient alone; both earn their place", "150 in-the-wild seeds, 500 benign"],
      ["NIST-AI-RMF guard benchmark", "Qwen3Guard-0.6B recall <b>0.886</b> on the 6 complete-harmful-request "
       "axes at 7.1% benign FPR &mdash; on par with the benchmark&rsquo;s best 4B model (0.840) at &asymp;7&times; "
@@ -516,6 +516,9 @@ H.append(table(
       "(utility&rarr;0.154) &mdash; both below the no-defence utility, so deploy L3 as a high-precision block/escalate "
       "gate, not auto-repair (the null generalises across backends)", "PIArena squad_v2/combined, two backends "
       "(Qwen-3-4B, Llama-3.1-8B), independent GPT-OSS-120B judge, n=200 each"],
+     ["Guard latency (T4, batch 1)", "Mean ms per prompt: <b>Qwen3Guard-0.6B 66</b> (fastest, 1.8 GB); ShieldGemma-2B 117; "
+      "Granite-3.2 162; Qwen3Guard-4B 440; Granite-4.1-8B 595; Llama-Guard-3-8B 593. Cascade (20% escalated): "
+      "<b>189&ndash;206 ms</b> per request &mdash; 8B-level recall at ~1/3 the 8B latency", "200 benchmark prompts; 1&ndash;5% harmful traffic"],
      ["Cross-family guard comparison (matched FPR + precision)", "L2 guard = off-the-shelf Qwen3Guard-0.6B. fp16 AUC / R@2% / R@5%: "
       "<b>0.92 / 0.54 / 0.73</b>; ShieldGemma-2B 0.83 / 0.29 / 0.41 (sig. worse); Granite-3.2 (0.8B active) 0.91 / 0.64 / 0.77 "
       "(no sig. difference). 4-bit: ours 0.91 / 0.49 / 0.68; Llama-Guard-3-8B 0.72 / 0.55 / 0.58 (ours sig. better on AUC, R@5%); "

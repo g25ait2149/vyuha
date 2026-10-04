@@ -1,0 +1,11 @@
+Guard latency - one Tesla T4 (Colab), exact scoring computation (one forward, verdict-token log-odds), 200 benchmark prompts (100 benign + 100 unsafe), 2026-10-05.
+guard                       median ms (b=1)    p90 ms   mean ms  prompts/s (b=8)   peak GB
+Qwen3Guard-0.6B fp16                   64.3      83.7      65.9             24.4       1.8
+Granite-4.1-8B 4-bit                  492.2     958.5     595.2              2.0       6.1
+Qwen3Guard-0.6B 4-bit                 100.5     124.2     106.9             10.0       1.5
+ShieldGemma-2B fp16                    91.5     220.4     116.5              8.5       6.0
+Granite-3.2-3B fp16                   148.4     204.2     162.0             14.0       7.1
+Llama-Guard-3-8B 4-bit                506.6     830.3     592.7              2.1       7.3
+Qwen3Guard-4B 4-bit                   397.5     554.5     439.5              2.6       4.3
+Cascade expected mean latency = 65.9 + P(escalate) x 595.2 ms, P(escalate) from results/guard_scores_v2.csv:
+  20% benign escalated: 189 ms (1% harmful traffic) / 206 ms (5%);  30%: 248 / 263 ms;  10%: 130 / 147 ms.

@@ -281,6 +281,11 @@ def run_agentdojo_l3(api_key=None, provider="groq", model=None, base_url=None,
                     if resume:
                         _ad_save_cache(cache_path, cache)          # incremental, interruption-safe
                     util_vals += uv; sec_vals += sv; ran += 1
+                    if verbose:
+                        k = user_ids.index(uid) + 1
+                        print(f"    [{'L3' if defended else 'undef'} {suite_name}] {k}/{len(user_ids)} user tasks | "
+                              f"episodes {len(sec_vals)} | ASR so far {sum(sec_vals) / max(len(sec_vals), 1):.2f} | "
+                              f"est ${USAGE['usd']:.3f} ({USAGE['calls']} calls)", flush=True)
                 except BudgetExceeded as e:
                     if verbose:
                         print(f"    [budget] {e} - stopping; completed tasks are cached, re-run to resume")

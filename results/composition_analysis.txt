@@ -1,0 +1,48 @@
+
+== FPR 2%
+Granite raw                        fpr 0.021 ms  595 harmful re 0.663  jailbreaks 0.123  obfuscated 0.308
+Granite + L0                       fpr 0.021 ms  595 harmful re 0.718  jailbreaks 0.114  obfuscated 0.656
+L1 OR Granite+L0 (no cascade)      fpr 0.022 ms  603 harmful re 0.647  jailbreaks 0.319  obfuscated 0.777
+Q06 OR Granite raw (2 guards)      fpr 0.022 ms  661 harmful re 0.575  jailbreaks 0.088  obfuscated 0.176
+Q06 OR Granite +L0 (2 guards)      fpr 0.023 ms  661 harmful re 0.624  jailbreaks 0.086  obfuscated 0.450
+Vyuha full                         fpr 0.022 ms  203 harmful re 0.780  jailbreaks 0.355  obfuscated 0.874
+
+== FPR 5%
+Granite raw                        fpr 0.051 ms  595 harmful re 0.877  jailbreaks 0.286  obfuscated 0.562
+Granite + L0                       fpr 0.050 ms  595 harmful re 0.880  jailbreaks 0.225  obfuscated 0.869
+L1 OR Granite+L0 (no cascade)      fpr 0.048 ms  603 harmful re 0.863  jailbreaks 0.493  obfuscated 0.933
+Q06 OR Granite raw (2 guards)      fpr 0.044 ms  661 harmful re 0.766  jailbreaks 0.211  obfuscated 0.381
+Q06 OR Granite +L0 (2 guards)      fpr 0.043 ms  661 harmful re 0.811  jailbreaks 0.195  obfuscated 0.758
+Vyuha full                         fpr 0.052 ms  201 harmful re 0.866  jailbreaks 0.478  obfuscated 0.931
+
+phi between MISSES (2% thr each)
+harmful requests
+          l1-g41_norm  miss 1.00/0.29 both 0.29 indep 0.29 phi +nan
+          l1-q06_norm  miss 1.00/0.47 both 0.47 indep 0.47 phi +nan
+    q06_norm-g41_norm  miss 0.47/0.29 both 0.25 indep 0.14 phi +0.51
+     q06_raw-g41_raw   miss 0.55/0.34 both 0.28 indep 0.19 phi +0.39
+jailbreaks
+          l1-g41_norm  miss 0.52/0.90 both 0.47 indep 0.47 phi +0.01
+          l1-q06_norm  miss 0.52/0.93 both 0.49 indep 0.48 phi +0.06
+    q06_norm-g41_norm  miss 0.93/0.90 both 0.85 indep 0.83 phi +0.25
+     q06_raw-g41_raw   miss 0.93/0.88 both 0.84 indep 0.82 phi +0.24
+obfuscated harmful
+          l1-g41_norm  miss 0.51/0.36 both 0.15 indep 0.18 phi -0.15
+          l1-q06_norm  miss 0.51/0.77 both 0.30 indep 0.39 phi -0.42
+    q06_norm-g41_norm  miss 0.77/0.36 both 0.35 indep 0.28 phi +0.35
+     q06_raw-g41_raw   miss 0.97/0.71 both 0.71 indep 0.68 phi +0.29
+benign false-alarm phi (q06_norm vs g41_norm):
+  each at 2%: both 0.005 indep 0.0004 phi +0.23
+  each at 5%: both 0.019 indep 0.0025 phi +0.35
+  each at 20%: both 0.060 indep 0.0400 phi +0.13
+  l1 vs g41 at 2%: phi +0.08
+
+independent per-layer 2%: OR of 3 layers -> benign FPR 0.053
+   harmful     recall 0.748
+   jailbreak   recall 0.550
+   obfuscated  recall 0.862
+
+independent per-layer 5%: OR of 3 layers -> benign FPR 0.119
+   harmful     recall 0.895
+   jailbreak   recall 0.797
+   obfuscated  recall 0.970

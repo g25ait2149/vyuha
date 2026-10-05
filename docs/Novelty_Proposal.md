@@ -2,6 +2,8 @@
 
 *Prepared 5 Oct 2026 for discussion with the professors. Status: idea stage. Nothing below is a result yet.*
 
+> **6 Oct 2026 — WITHDRAWN.** A systematic literature check found both halves of the recommended direction already published (attack: Strong but Brittle 2510.11570, JudgeDeceiver, Emoji Attack, Overflip; fix: SelfGrader 2604.01473, FlexGuard 2602.23636, COGNIT-Guard 2609.33671). See `Literature_Check_2026-10-06.md`. Do not present this proposal.
+
 ## What the professors asked for
 Find a specific weakness ("loophole") in a model, explain why it happens, and prove a fix, mathematically or with rigorous experiments, so the paper makes a novel, defensible claim.
 

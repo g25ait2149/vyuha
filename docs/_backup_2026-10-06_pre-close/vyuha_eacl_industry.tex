@@ -478,10 +478,8 @@ trade-off --- the null generalisation that motivates deploying L3 as a detection
 
 \subsection{Three pitfalls in evaluating and composing guards}
 Building and measuring Vyuha surfaced three failure modes that silently change conclusions. Each was
-found by a validity check, fixed, and pinned by a regression test. None is new in kind --- related
-effects are reported for guard strictness \citep{flexguard}, score ties \citep{rank-compression} and
-confident guard misses \citep{overconfident} --- but we document their size on current guards because
-each would mislead a practitioner who composes or benchmarks them.
+found by a validity check, fixed, and pinned by a regression test; we report them because each would
+mislead any practitioner who composes or benchmarks LLM guards.
 
 \paragraph{(1) Verdict-position sensitivity.} A guard's score is only meaningful if read at the token
 where that guard actually states its verdict. Granite Guardian~4.1 emits an empty reasoning block and a
@@ -494,8 +492,7 @@ with one generic reader can therefore misrank them.
 \paragraph{(2) Score saturation at strict FPR.} Converting verdict logits to probabilities saturates
 many benign scores at exactly 1.0; the benign quantile that defines a 2\% FPR threshold then ties at the
 maximum and no attack can exceed it. Our own 0.6B guard's recall at 2\% FPR read 0.27 under probabilities
-and 0.54 under raw log-odds on the same outputs (cf.\ rank compression of verdict probabilities
-\citep{rank-compression}). Matched-FPR comparisons should rank on log-odds and
+and 0.54 under raw log-odds on the same outputs. Matched-FPR comparisons should rank on log-odds and
 report the achieved FPR and the fraction of ties at the threshold.
 
 \paragraph{(3) Fail-open composition.} Related to the confident-miscalibration failure of CPU cascade
@@ -552,8 +549,6 @@ LLM09 Misinformation & L2/L4 response scoring \\
 (Qwen3Guard, Granite Guardian, Llama Guard, WildGuard, ShieldGemma) each own different axes, and no one
 model dominates \citep{guard-bench}. Vyuha does not out-build any of these --- it \emph{composes} them
 behind a CPU fast layer and measures the resulting division of labour. Closest to our cascade,
-COGNIT-Guard \citep{cognit} couples a calibrated CPU gatekeeper with confidence-gated escalation to a
-larger guard under explicit FPR and latency constraints, and
 GuardChain \citep{guardchain} routes prompts Regex$\rightarrow$CPU$\rightarrow$GPU and reports that CPU
 classifiers fail out of distribution through \emph{confident} false negatives that never escalate; and
 \citet{layered-ensemble} show that the layers of a defence stack fail in correlated ways, so a stack must
@@ -562,10 +557,6 @@ refusing most benign prompts. Our head-on result (Table~\ref{tab:e2e}) is such a
 at matched FPR, and finds the opposite outcome for this composition on jailbreaks and disguised text.
 Cascades are also attackable as systems: staged attacks break safeguard pipelines component by component
 \citep{stack}, and adversarial suffixes can steer an LLM cascade's escalation decisions \citep{cascade-attack}.
-Encoded and character-level evasions of guards are well documented \citep{hackett,emoji}, and semantic
-censorship of invertible encodings is impossible in general \citep{glukhov}; L0 therefore narrows, and
-cannot close, this gap. PIDS-Bench \citep{pidsbench} finds that high-F1 injection detectors still leave
-substantial attack success, consistent with our L3 result on AgentDojo.
 \textbf{Adaptive attacks and hardening.} Static defenses fall to adaptive attackers:
 \citet{attacker-second} bypass twelve defenses at $>$90\% ASR, and PISmith \citep{pismith} trains an
 RL red-teamer, on the PIArena platform \citep{piarena}, that beats state-of-the-art prompt-injection
@@ -646,7 +637,7 @@ Harmful-content datasets are loaded read-only for measurement and no harmful tex
 redaction is best-effort, not a compliance guarantee. The system is intended to operate with human
 oversight and continuous red-teaming.
 
-\begin{thebibliography}{99}
+\begin{thebibliography}{9}
 \bibitem[OWASP(2025)]{owasp-llm} OWASP Foundation. 2025. \emph{OWASP Top 10 for Large Language Model Applications (2025)}. \url{https://genai.owasp.org}.
 \bibitem[Nasr et~al.(2025)]{attacker-second} Milad Nasr, Nicholas Carlini, Chawin Sitawarin, Sander Schulhoff, Jamie Hayes, Ilia Shumailov, Andreas Terzis, and Florian Tram\`er. 2025. The Attacker Moves Second: Stronger Adaptive Attacks Bypass Defenses Against LLM Jailbreaks and Prompt Injections. \emph{arXiv:2510.09023}.
 \bibitem[Russinovich et~al.(2024)]{crescendo} Mark Russinovich, Ahmed Salem, and Ronen Eldan. 2024. Great, Now Write an Article About That: The Crescendo Multi-Turn LLM Jailbreak Attack. \emph{arXiv:2404.01833} (USENIX Security 2025).
@@ -661,15 +652,6 @@ oversight and continuous red-teaming.
 \bibitem[Alotaibi et~al.(2026)]{layered-ensemble} Abrar Alotaibi, Muhammad Shahid Jabbar, Sadam Al-Azani, and Moataz Ahmed. 2026. Layered LLM Defenses as an Ensemble: Access Tiers, Inference Cost, and the Measured Failure Correlation Between Defense Layers. \emph{arXiv:2608.28327}.
 \bibitem[STACK(2025)]{stack} STACK: Adversarial Attacks on LLM Safeguard Pipelines. 2025. \emph{arXiv:2506.24068}.
 \bibitem[Sun et~al.(2026)]{cascade-attack} Zehan Sun, Dingfan Chen, and Songze Li. 2026. When Efficiency Backfires: Cascading LLMs Trigger Cascade Failure under Adversarial Attack. \emph{arXiv:2605.17288}.
-% TODO(authors): confirm author lists for cognit, pidsbench, rank-compression, flexguard, emoji from arXiv.
-\bibitem[COGNIT-Guard(2026)]{cognit} COGNIT-Guard: Calibrated Standalone Direct-Decision Guardrails with Heterogeneous CPU--NPU Confidence Cascading under Explicit Latency and False-Positive Constraints. 2026. \emph{arXiv:2609.33671}.
-\bibitem[Hong et~al.(2026)]{overconfident} Jonghyun Hong, MinJae Jung, and Minwoo Kim. 2026. Guard Models Are Overconfident Where Base Models Are Uncertain. \emph{arXiv:2609.36477} (Findings of EMNLP 2026).
-\bibitem[Rank compression(2026)]{rank-compression} A VLM Answer Is Not an Anomaly Score: Rank Compression Across Image and Video Anomaly Detection. 2026. \emph{arXiv:2608.21244}.
-\bibitem[FlexGuard(2026)]{flexguard} FlexGuard: Continuous Risk Scoring for Strictness-Adaptive LLM Content Moderation. 2026. \emph{arXiv:2602.23636} (ACL 2026).
-\bibitem[PIDS-Bench(2026)]{pidsbench} PIDS-Bench: Evaluating Prompt-Injection Detectors Under Over-Defense, Obfuscation, and Distribution Shift. 2026. \emph{arXiv:2609.15017}.
-\bibitem[Hackett et~al.(2025)]{hackett} William Hackett, Lewis Birch, Stefan Trawicki, Neeraj Suri, and Peter Garraghan. 2025. Bypassing LLM Guardrails: An Empirical Analysis of Evasion Attacks against Prompt Injection and Jailbreak Detection Systems. In \emph{Proc.\ LLMSEC Workshop}. \emph{arXiv:2504.11168}.
-\bibitem[Wei et~al.(2025)]{emoji} Emoji Attack: Enhancing Jailbreak Attacks Against Judge LLM Detection. 2025. \emph{arXiv:2411.01077} (ICML 2025).
-\bibitem[Glukhov et~al.(2024)]{glukhov} David Glukhov, Ilia Shumailov, Yarin Gal, Nicolas Papernot, and Vardan Papyan. 2024. Position: Fundamental Limitations of LLM Censorship Necessitate New Approaches. In \emph{Proc.\ ICML}.
 \end{thebibliography}
 
 \end{document}

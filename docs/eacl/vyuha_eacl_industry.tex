@@ -160,6 +160,8 @@ Obfuscation (L1) & recall & \textbf{1.00} incl.\ held-out \\
 Adaptive (L1) & ASR, L0 only & 1.00 [0.97,1.00] \\
  & ASR, L0+aug (pairwise) & \textbf{0.03} [0.01,0.08] \\
  & ASR, L0+aug (genetic) & \textbf{0.08} [0.06,0.10] \\
+ & held-out seeds (gen.) & 0.30 [0.23,0.38] \\
+Self-harden (L5) & seen-family ASR & 0.11\,$\rightarrow$\,\textbf{0.00} \\
 Semantic (L2) & PAIR recall & \textbf{0.90} (L1: 0.07) \\
 NIST-RMF (L2) & recall, req.\ axes & \textbf{0.886} ($\approx$4B: 0.84) \\
  & benign FPR & 0.071 \\
@@ -214,6 +216,20 @@ attacker allowed all five seeds evades only 0.09 of prompts. The same genetic se
 \emph{augmentation-alone} from 0.25 to 0.75 [0.72,0.78] pooled --- highly seed-dependent (0.58--0.99), and
 1.00 for the five-seed attacker: L0 normalisation is far more load-bearing than the pairwise ablation
 implied, and neither component is sufficient on its own --- both earn their place.
+
+\paragraph{Held-out seeds and self-hardening (L5).} The adaptive seeds above come from the detector's
+training distribution. On a disjoint split --- 150 attack seeds and 500 benign prompts removed from
+training, against a detector retrained without them --- the genetic attacker evades 0.30 [0.23,0.38] of
+\emph{held-out} seeds versus 0.11 [0.07,0.17] of seen ones: robustness to attacks from unseen families is
+markedly weaker, which we report as a limit of the fast layer. L5's self-hardening loop addresses the
+seen side. Each round it harvests the variants that evaded, adds normalised signatures, retrains, and rolls
+the round back if over-refusal on a 500-prompt benign guard set rises by more than 2 points; each round
+faces a \emph{fresh} attacker seed, and a no-hardening control runs the same rounds. One round drives
+seen-family ASR to 0.00 [0.00,0.02] (control 0.13 [0.08,0.19]) with no change in over-refusal on held-out
+benign prompts (6.6\% $\rightarrow$ 6.4\%); held-out ASR does not move significantly (0.27 [0.21,0.35]
+vs.\ control 0.30 [0.23,0.38]). Self-hardening therefore closes attack families once they have been seen
+--- at no measured usability cost --- but does not generalise to novel ones, which remain the content
+guard's and the red-team loop's job.
 
 \paragraph{Division of labour (L1 vs L2).} On 103 real PAIR jailbreaks the surface detector flags
 6.8\% (no surface tell) while the composed content guard flags 90.3\% at 4.8\% over-refusal ---
@@ -480,7 +496,9 @@ The NIST-RMF result is an indicative reconstruction, not the official 79{,}331-s
 two toxicity-prefix axes are short fragments a request-focused guard reasonably under-flags. The
 Crescendo result is on modeled score trajectories. Our adaptive attacker searches over
 public transforms --- both an exhaustive pairwise sweep and a harder genetic (deep-chain, crossover)
-search, which the full detector also survives (0.08 [0.06,0.10] genetic over five seeds vs 0.03 pairwise). To place Vyuha in
+search, which the full detector also survives (0.08 [0.06,0.10] genetic over five seeds vs 0.03 pairwise). Those seeds are in-distribution; on held-out
+attack seeds the genetic attacker evades 0.30 [0.23,0.38], and self-hardening closes seen attack families
+but not novel ones. To place Vyuha in
 a shared harness we release it as a PIArena \citep{piarena} defense plug-in; the static and
 search-based head-to-head (Direct, Combined, TAP, PAIR) is single-GPU runnable, whereas the strongest
 cited attacker --- the \emph{learned} RL red-teamer PISmith \citep{pismith}, which optimises against

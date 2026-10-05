@@ -129,6 +129,12 @@ Recall is reported at a fixed 1% FPR.
   traffic to Granite-4.1-8B (total FPR matched). At 20-30% escalation it matches Granite-4.1 alone with no
   significant difference (2% FPR: 0.85/0.84 vs 0.80; 5% FPR: 0.87/0.90 vs 0.90) - 8B-level recall with
   70-80% fewer 8B calls on benign traffic. At 10% escalation it is significantly worse at 5% FPR.
+- **Held-out seeds + L5 self-hardening (disjoint split, fresh genetic attacker each round, no-hardening control).**
+  The adaptive seeds above are in-distribution: on 150 held-out attack seeds (removed from training) the genetic
+  attacker evades **0.30 [0.23, 0.38]** vs 0.11 on seen ones. One self-hardening round (signatures + retrain,
+  2-point over-refusal budget with rollback) drives seen-family ASR to **0.00 [0.00, 0.02]** (control 0.13) with
+  held-out-benign over-refusal unchanged (6.6% -> 6.4%); held-out ASR does not move significantly (0.27 vs
+  control 0.30). It closes attack families once seen; it does not generalise to novel ones.
 - **Latency (one T4, batch 1, mean over 200 benchmark prompts).** Qwen3Guard-0.6B 66 ms (fastest guard measured,
   1.8 GB); ShieldGemma-2B 117 ms; Granite-3.2 162 ms; Qwen3Guard-4B 440 ms; Granite-4.1-8B 595 ms; Llama-Guard-3-8B
   593 ms. The 0.6B->Granite-4.1 cascade at 20% escalation averages 189-206 ms per request (1-5% harmful

@@ -1,0 +1,10 @@
+P5b - L5 self-hardening on a disjoint held-out split (Kaggle CPU, 2026-10-05). Genetic attacker, fresh attacker seed per round.
+A = 150 seen attack seeds (in detector training; harvested); B = 150 held-out attack seeds (excluded from training, never harvested);
+G1 = 500 benign FRR guard (2% budget, rollback); G2 = 500 held-out benign (excluded from training). Detector train n=3093. thr 0.5.
+arm        round       seen ASR [95% CI]     held-out ASR [95% CI]  FRR guard  FRR held-out  #sigs
+hardened       0      0.113 [0.07,0.17]         0.300 [0.23,0.38]       0.008         0.066      0
+hardened       1      0.000 [0.00,0.02]         0.273 [0.21,0.35]       0.008         0.064     16
+hardened       2      0.000 [0.00,0.02]         0.273 [0.21,0.35]       0.008         0.064     16
+control        0      0.113 [0.07,0.17]         0.300 [0.23,0.38]       0.008         0.066      0
+control        1      0.127 [0.08,0.19]         0.307 [0.24,0.38]       0.008         0.066      0
+control        2      0.127 [0.08,0.19]         0.300 [0.23,0.38]       0.008         0.066      0

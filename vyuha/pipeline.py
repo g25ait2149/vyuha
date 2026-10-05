@@ -13,11 +13,16 @@ from .prefilter.fast_layer import FastLayer
 
 class Vyuha:
     def __init__(self, detector=None, guard=None, block_at=0.80, allow_below=0.20,
-                 escalate_to_guard=True, output_moderator=None):
+                 escalate_to_guard=True, output_moderator=None, skip_guard_below=None):
+        """skip_guard_below: if set, prompts whose L1 score is below it are ALLOWED without consulting
+        the L2 guard (saves LLM calls). Default None = never skip. Measured (2026-10-05): L1 is a
+        jailbreak detector and scores 94% of plain harmful requests below 0.20, so skipping the guard
+        there would wave them through unchecked - only enable it for jailbreak-only deployments."""
         self.detector = detector          # L1 fast layer
         self.guard = guard                 # L2 guard (TunedGuard / GuardEnsemble / OpenGuard)
         self.block_at, self.allow_below = block_at, allow_below
         self.escalate_to_guard = escalate_to_guard
+        self.skip_guard_below = skip_guard_below
         self.output_moderator = output_moderator   # L4 egress gate (OutputModerator)
 
     def fit(self, X, y):
@@ -35,7 +40,8 @@ class Vyuha:
         fast = float(self.detector.proba([payload])[0])             # L1 fast layer
         score, used_guard = fast, False
         # L2 - only escalate the uncertain band to the guard (cheap coverage, deep scrutiny where needed)
-        if self.guard is not None and self.escalate_to_guard and self.allow_below <= fast < self.block_at:
+        skip = self.skip_guard_below is not None and fast < self.skip_guard_below
+        if self.guard is not None and self.escalate_to_guard and not skip and fast < self.block_at:
             g = float(self.guard.proba([payload])[0])
             score, used_guard = max(fast, g), True
 

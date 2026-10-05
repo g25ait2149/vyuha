@@ -89,13 +89,14 @@ component is a new algorithm; the contribution is the measured composition and i
 \node[box, right=4mm of l3] (l4) {L4\\output};
 \node[box, right=4mm of l4] (out) {allow /\\redact /\\block};
 \foreach \a/\b in {in/l0, l0/l1, l1/l2, l2/l3, l3/l4, l4/out} \draw[->] (\a)--(\b);
-\node[above=1mm of l2, font=\scriptsize\itshape] {uncertain band only};
+\node[above=1mm of l2, font=\scriptsize\itshape] {0.6B screen $\rightarrow$ 8B};
 \node[box, fill=orange!12, below=6mm of l2, minimum width=40mm] (l5)
   {L5 ops: red-team $\cdot$ PSI drift $\cdot$ session (Crescendo) monitor $\cdot$ self-hardening};
 \draw[->, dashed] (l5.north) -- (l2.south);
 \end{tikzpicture}
-\caption{The Vyuha cascade. The CPU fast layer (L1) triages the majority of traffic; the expensive
-content guard (L2) is consulted only on the uncertain band; L3 defends the agent/tool path; L4 gates
+\caption{The Vyuha cascade. The CPU fast layer (L1) blocks clear jailbreaks; everything else goes to
+the L2 guard cascade, where a 0.6B guard screens and only its most suspicious share reaches an 8B guard;
+L3 defends the agent/tool path; L4 gates
 egress; and L5 continuously red-teams and monitors.}
 \label{fig:arch}
 \end{figure*}
@@ -110,11 +111,13 @@ that detects letter-gap width dynamically. This is rule-based, deterministic, an
 
 \paragraph{L1 --- Fast detector (RJD-v2).} An always-on CPU triage ($\sim$8\,ms/prompt):
 TF-IDF char+word n-grams, engineered features, and a calibrated ensemble, trained with adversarial
-augmentation. It decides the majority of traffic so the expensive guard is consulted only on the
-uncertain band.
+augmentation. It blocks clear jailbreaks before any LLM runs. It does \emph{not} allow traffic past
+the guard: as a jailbreak detector it scores 94\% of plain harmful requests below its allow threshold
+(0.20), so letting it skip the guard would wave them through (the skip is an opt-in, off by default).
 
 \paragraph{L2 --- Content guard.} For harmful-topic and semantic coverage we \emph{compose} an open
-content guard (Qwen3Guard-0.6B), invoked on the cascade's uncertain band. We do not out-build mature
+content guard (Qwen3Guard-0.6B) that screens every prompt L1 does not block, escalating its most
+suspicious share to an 8B guard (the selective cascade; Table~\ref{tab:baselines}). We do not out-build mature
 content guards; the stack's semantic coverage is the composed guard's.
 
 \paragraph{L3 --- Agent defense.} An injection scanner de-obfuscates and sanitises untrusted tool
@@ -415,10 +418,12 @@ Vyuha ships as a Python library, a FastAPI service (\texttt{/scan}, \texttt{/mod
 \texttt{/guard\_turn}), and a CLI, so a team can place it in front of or behind an LLM with a few
 lines of code.
 
-\paragraph{Cost.} The selective cascade bounds per-request cost. The CPU fast layer ($\sim$8\,ms)
-decides the majority of traffic, and the GPU content guard runs only on the uncertain band, so the
-expected guard cost per request scales with the \emph{uncertain-band rate} rather than with total
-traffic --- the lever a deployment actually controls. Because production traffic is overwhelmingly
+\paragraph{Cost.} We measure cost as compute, not tokens. Counting each guard's exact input (its
+template plus the prompt) on the 1,607 benchmark prompts, the cascade processes \emph{more} tokens than a
+single 8B guard (561 vs 320 per request: the 0.6B guard's template is long and it reads every request)
+but needs about a third of the compute (1.9 vs 5.4 TFLOPs per request, $\approx$2 FLOPs per parameter
+per token), consistent with its measured latency (189 vs 595\,ms). The lever a deployment controls is the
+escalation share, not the token count. Because production traffic is overwhelmingly
 benign, thresholds are set at a fixed low false-positive rate, where a small change in FPR dominates
 total operating cost; recall is then reported at that operating point rather than at a default 0.5.
 

@@ -1,0 +1,14 @@
+Tokens and compute per request (notebooks/vyuha_tokens_compute.ipynb, CPU, 2026-10-05). 1,607 NIST-RMF benchmark prompts.
+Tokens = each guard's exact scoring input (chat template + instructions + prompt + verdict prefix). GFLOPs ~ 2 x active params x tokens.
+system                                                      LLM tokens / request  GFLOPs / request
+Qwen3Guard-0.6B                                                            493.5             741.9
+ShieldGemma-2B                                                             310.7            1624.8
+Granite-3.2-3B                                                             355.3             568.5
+Qwen3Guard-4B                                                              493.5            4354.5
+Llama-Guard-3-8B                                                           396.5            6368.3
+Granite-4.1-8B                                                             319.8            5360.5
+Vyuha cascade (0.6B all + 8B on 21%)                                       560.7            1867.6
+Vyuha cascade, L1 short-circuit (guards on 6% of benign)                    31.4             104.6
+vs Granite-4.1-8B alone: cascade tokens x1.75, compute x0.35
+CAUTION: the L1 short-circuit would also wave through 94% of plain harmful requests without any guard check.
+-> pipeline fixed: L1 no longer allows past the guard by default (Vyuha(skip_guard_below=None)); regression test added.

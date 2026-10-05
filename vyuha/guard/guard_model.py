@@ -142,3 +142,57 @@ class GuardEnsemble:
         return {"ensemble": {"recall": erec, "fpr": efpr, "mode": "union@thresholds"},
                 "members": members, "marginal": marginal,
                 "n_pos": int(pos.sum()), "n_neg": int(neg.sum())}
+
+
+class GuardCascade:
+    """Selective two-stage L2 cascade: a small *screen* guard scores every input, and only its most
+    suspicious share is escalated to a larger *expert* guard, which decides.
+
+    Calibration (`fit`) uses benign traffic only: the screen threshold is the (1 - escalate_share)
+    quantile of its benign scores, and the expert threshold is chosen so the TOTAL benign FPR of the
+    cascade equals `target_fpr` (only escalated inputs can be flagged). This is the configuration
+    evaluated in the paper (0.6B screen -> 8B expert, 20-30% escalation): 8B-level recall with the
+    expert called on only ~escalate_share of benign traffic.
+
+    Scores should be raw verdict-token log-odds where available (pass `screen_score` / `expert_score`
+    callables); sigmoid probabilities saturate and tie at strict thresholds.
+
+        cas = GuardCascade(qwen06, granite41, escalate_share=0.2, target_fpr=0.02).fit(benign_texts)
+        cas.predict(texts)   # 0/1 flags;  cas.last_escalated -> which inputs reached the expert
+    """
+    def __init__(self, screen, expert, escalate_share=0.2, target_fpr=0.02,
+                 screen_score=None, expert_score=None):
+        assert 0 < escalate_share <= 1 and 0 < target_fpr < 1
+        self.screen, self.expert = screen, expert
+        self.escalate_share, self.target_fpr = escalate_share, target_fpr
+        self._s = screen_score or (lambda X: np.asarray(screen.proba(X), dtype=float))
+        self._e = expert_score or (lambda X: np.asarray(expert.proba(X), dtype=float))
+        self.screen_thr = self.expert_thr = None
+        self.last_escalated = None
+
+    def fit(self, benign_X):
+        benign_X = list(benign_X)
+        s = np.asarray(self._s(benign_X), dtype=float)
+        self.screen_thr = float(np.quantile(s, 1 - self.escalate_share))
+        esc = [x for x, v in zip(benign_X, s) if v > self.screen_thr]
+        k = int(np.floor(self.target_fpr * len(benign_X)))        # benign flags allowed in total
+        e = np.sort(np.asarray(self._e(esc), dtype=float))[::-1] if esc else np.array([])
+        self.expert_thr = float(e[k]) if k < len(e) else float("-inf")
+        return self
+
+    def predict(self, X):
+        assert self.screen_thr is not None, "call fit(benign_X) first"
+        X = list(X)
+        s = np.asarray(self._s(X), dtype=float)
+        esc = s > self.screen_thr
+        self.last_escalated = esc
+        flags = np.zeros(len(X), dtype=int)
+        idx = np.where(esc)[0]
+        if len(idx):                                              # expert runs ONLY on the escalated share
+            e = np.asarray(self._e([X[i] for i in idx]), dtype=float)
+            flags[idx] = (e > self.expert_thr).astype(int)
+        return flags
+
+    def proba(self, X):
+        """Pipeline-compatible score: 1.0 for a flagged input, 0.0 otherwise (the cascade is a decision)."""
+        return self.predict(X).astype(float)

@@ -43,10 +43,7 @@ moderation, and continuous red-teaming) and ships as a library, a service, and a
 contribution is not a new algorithm but a \emph{deployable composition}, an
 \emph{evaluation methodology} suited to LLM-guard components (recall-first, confidence intervals,
 adaptive-attack ablation, a standardised-benchmark reconstruction, and base-rate discipline), and
-\emph{full reproducibility on a single free GPU}. Measured head-on as a whole system at matched false-positive rate, Vyuha catches significantly
-more jailbreaks (+0.20) and disguised harmful requests (+0.37) than the strongest single guard we tested
-(Granite Guardian~4.1-8B), ties it on plain harmful requests, and needs about a third of its compute and
-latency; ablations attribute each gain to a layer. At the layer level, with 95\%
+\emph{full reproducibility on a single free GPU}. We report security-grade metrics with 95\%
 confidence intervals: the CPU fast layer matches a GPU neural guard's obfuscation robustness at
 $\sim$8\,ms; against an adaptive attacker, normalisation alone leaves ASR at 1.00 while adversarial
 augmentation closes it to 0.03 at 1\% false-positive rate; on a NIST-AI-RMF guard benchmark the
@@ -77,10 +74,7 @@ contributions are: (1) a \emph{deployable} six-layer composition (library, servi
 selective cascade that keeps the expensive guard off the hot path; (2) an \emph{evaluation
 methodology} for LLM-guard components --- recall-first, with Wilson confidence intervals, an
 adaptive-attack ablation, a standardised-benchmark reconstruction, and base-rate and contamination
-discipline; (3) a head-on, end-to-end comparison of the whole pipeline against single guards at matched
-false-positive rate, with ablations that attribute each gain to a layer; (4) three pitfalls in evaluating and composing guards --- verdict-position sensitivity,
-score saturation at strict FPR, and fail-open composition --- each found, measured and fixed; and (5) an
-honest account, at every layer, of where stronger work exists. No single
+discipline; and (3) an honest account, at every layer, of where stronger work exists. No single
 component is a new algorithm; the contribution is the measured composition and its reproducibility.
 
 \begin{figure*}[t]
@@ -156,60 +150,6 @@ prompts; benchmark sets are held test-only. All numbers reproduce from the noteb
 (\artifacturl) on a single free T4 GPU (Kaggle or Colab).
 
 \section{Results}
-\subsection{The whole pipeline versus a single guard (head-on)}
-Because every system --- Vyuha or a single guard --- returns one final decision per prompt, the
-composition can be compared head-on. We run the same 2,407 prompts through each system: 507 complete
-harmful requests (NIST-RMF reconstruction), 300 in-the-wild jailbreaks and 1,000 benign prompts held out
-from L1 training, and 600 \emph{disguised} harmful requests (100 each under Base64, character spacing,
-homoglyphs, leetspeak, zero-width characters and role-play wrapping). Vyuha is L0 normalisation, then L1,
-which may block (it is given a quarter of the false-positive budget), then the 0.6B$\rightarrow$8B guard
-cascade on the normalised text with 20\% escalation; the baselines are Qwen3Guard-0.6B and Granite
-Guardian~4.1-8B on the raw text. These rules were fixed before measurement. Every system is calibrated to
-the same benign false-positive rate on a random half of the benign prompts and evaluated on the other half
-(500 random splits, positives bootstrapped), so differences are paired and at matched FPR.
-
-\begin{table*}[t]
-\centering\footnotesize\setlength{\tabcolsep}{4pt}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{lcccccc}
-\toprule
-& \multicolumn{3}{c}{Recall at 5\% benign FPR} & \multicolumn{3}{c}{Recall at 2\% benign FPR} \\
-\cmidrule(lr){2-4}\cmidrule(lr){5-7}
-System & Harmful & Jailbreaks & Disguised & Harmful & Jailbreaks & Disguised \\
-\midrule
-Qwen3Guard-0.6B alone          & 0.74 & 0.18 & 0.20 & 0.46 & 0.08 & 0.04 \\
-Granite Guardian 4.1-8B alone  & 0.88 & 0.29 & 0.56 & 0.67 & 0.12 & 0.31 \\
-\textbf{Vyuha (whole pipeline)} & 0.87 & \textbf{0.48} & \textbf{0.93} & 0.78 & \textbf{0.36} & \textbf{0.88} \\
-\quad without L1               & 0.87 & 0.19 & 0.84 & 0.83 & 0.13 & 0.78 \\
-\quad without L0 (raw text)    & 0.88 & 0.52 & 0.77 & 0.76 & 0.36 & 0.67 \\
-\midrule
-Vyuha $-$ Granite~4.1 [95\% CI] & $-$0.01 [$-$.04,.02] & \textbf{+0.20} [.11,.32] & \textbf{+0.37} [.31,.42]
-                               & +0.11 [.00,.25] & \textbf{+0.23} [.12,.33] & \textbf{+0.56} [.44,.68] \\
-\bottomrule
-\end{tabular}}
-\caption{Head-on, end-to-end comparison at matched benign FPR (held-out FPR 5.3--5.4\% and 2.1--2.2\%
-for every system). Vyuha's mean latency is 203\,ms per request vs 595\,ms for Granite~4.1 on one T4
-(95\% benign / 5\% attack traffic). Bold: significant difference from Granite~4.1 alone (paired, 500
-splits). Disguised = six obfuscation tricks; Granite~4.1 alone catches 0.01 of Base64-encoded requests,
-Vyuha 1.00.}
-\label{tab:e2e}
-\end{table*}
-
-Table~\ref{tab:e2e} is our headline result. At matched FPR the whole pipeline catches significantly more
-jailbreaks ($+0.20$ at 5\% FPR, $+0.23$ at 2\%) and disguised harmful requests ($+0.37$, $+0.56$) than the
-strongest single guard we measured, is statistically tied with it on plain harmful requests, and runs in
-about a third of its time. The ablations attribute each gain: without L1 the jailbreak advantage vanishes
-(0.48$\rightarrow$0.19), because guards judge whether content is harmful, not whether a message is trying
-to subvert the model; without L0 recall on homoglyph and zero-width attacks halves (0.86$\rightarrow$0.44),
-because the guards cannot read the disguised text. A single guard given the same decoding would recover
-part of the disguised-attack gap (the ``without L1'' row: 0.84), which is why we report it: the remaining
-gain, and all of the jailbreak gain, comes from composition. On plain harmful requests the guard does the
-work in both systems; the quarter of the FPR budget given to L1 is why Vyuha does not exceed Granite there.
-Two caveats bound the claim: the six disguise tricks are families L1 was augmented against (on unseen
-families L1 is weaker; the held-out row of Table~\ref{tab:main}), and the jailbreaks are held out from, but share a
-source with, L1's training data. The remaining subsections report each layer's own evidence.
-
-\subsection{Layer-level evidence}
 Table~\ref{tab:main} summarises the measured results; all proportions carry 95\% confidence intervals.
 
 \begin{table}[t]
@@ -228,7 +168,7 @@ Self-harden (L5) & seen-family ASR & 0.11\,$\rightarrow$\,\textbf{0.00} \\
 Semantic (L2) & PAIR recall & \textbf{0.90} (L1: 0.07) \\
 NIST-RMF (L2) & recall, req.\ axes & \textbf{0.886} ($\approx$4B: 0.84) \\
  & benign FPR & 0.071 \\
-Agent inj.\ (L3) & AgentDojo ASR & 0.39\,$\rightarrow$\,\textbf{0.33} \\
+Agent inj.\ (L3) & AgentDojo ASR & \pending \\
 MCP poison (L3) & detection & \textbf{1.00} [0.87,1.00] \\
 Multi-turn (L5) & session detect & \textbf{0.71} [0.65,0.77] \\
  & per-message & 0.00 \\
@@ -410,11 +350,8 @@ Neither cascade row differs significantly from Granite~4.1 alone. ms: mean laten
 
 \paragraph{Agent and multi-turn defense (L3, L5).} On AgentDojo (all four suites, \emph{important\_instructions},
 gpt-oss-120b agent; injection ASR is the share of episodes in which the injection goal was executed, with
-errored episodes counted as successful attacks; 949 episodes per arm), L3 lowers injection ASR from 0.39
-[0.35,0.42] to 0.33 [0.30,0.36] ($p{=}0.015$) with no utility cost (0.50 vs.\ 0.52). The gain is confined to
-two suites --- Slack ($-0.15$, $p{=}0.02$) and Travel ($-0.16$, $p{=}0.005$) --- with no significant change
-in Banking or Workspace: a modest, real reduction, far from the capability-based guarantees of
-CaMeL \citep{camel}; injection-under-obfuscation
+errored episodes counted as successful attacks), L3 changes injection ASR from \pending{} to \pending{} at
+utility-under-attack \pending{} vs.\ \pending; injection-under-obfuscation
 detection is 1.00 versus 0.00--0.17 for a regex baseline. The MCP scanner detects 1.00 [0.87,1.00] of
 poisoned tool metadata at zero false positives on 25 poisoned / 27 benign tools. The session-level
 monitor flags 71\% [0.65,0.77] of modeled Crescendo escalations at 0\% benign FPR, versus 0\% for a
@@ -476,34 +413,6 @@ trade-off --- the null generalisation that motivates deploying L3 as a detection
 \label{tab:backends}
 \end{table}
 
-\subsection{Three pitfalls in evaluating and composing guards}
-Building and measuring Vyuha surfaced three failure modes that silently change conclusions. Each was
-found by a validity check, fixed, and pinned by a regression test; we report them because each would
-mislead any practitioner who composes or benchmarks LLM guards.
-
-\paragraph{(1) Verdict-position sensitivity.} A guard's score is only meaningful if read at the token
-where that guard actually states its verdict. Granite Guardian~4.1 emits an empty reasoning block and a
-\texttt{<score>} tag first, Llama Guard leading newlines, Qwen3Guard a \texttt{Safety:} prefix. Reading
-the first generated token instead gave Granite~4.1 an AUC of 0.19 (worse than chance) and Llama Guard~3
-zero recall at strict FPR; reading each guard at its own verdict position, admitted only after $\geq$90\%
-agreement with its own generated verdict, restored AUC 0.95 and 0.72. Benchmarks that score many guards
-with one generic reader can therefore misrank them.
-
-\paragraph{(2) Score saturation at strict FPR.} Converting verdict logits to probabilities saturates
-many benign scores at exactly 1.0; the benign quantile that defines a 2\% FPR threshold then ties at the
-maximum and no attack can exceed it. Our own 0.6B guard's recall at 2\% FPR read 0.27 under probabilities
-and 0.54 under raw log-odds on the same outputs. Matched-FPR comparisons should rank on log-odds and
-report the achieved FPR and the fraction of ties at the threshold.
-
-\paragraph{(3) Fail-open composition.} Related to the confident-miscalibration failure of CPU cascade
-stages \citep{guardchain}, but arising from a \emph{task mismatch} rather than distribution shift: layered
-guardrails commonly let a cheap first layer \emph{allow}
-low-risk traffic so the expensive guard is spared. Our L1 is a jailbreak detector: it scores 94\% of
-plain harmful requests below its allow threshold, so an ``allow below 0.20'' shortcut would have passed
-them without any content check --- a composed system strictly weaker than its own guard. Vyuha now lets
-L1 only \emph{block}; skipping the guard is opt-in. The general rule: a layer may decide on another
-layer's behalf only for the attack class it was calibrated on.
-
 \section{Deployment and Governance}
 Vyuha ships as a Python library, a FastAPI service (\texttt{/scan}, \texttt{/moderate},
 \texttt{/guard\_turn}), and a CLI, so a team can place it in front of or behind an LLM with a few
@@ -548,15 +457,7 @@ LLM09 Misinformation & L2/L4 response scoring \\
 \citep{promptshield} fine-tune a single classifier for a low-false-positive regime; open safety guards
 (Qwen3Guard, Granite Guardian, Llama Guard, WildGuard, ShieldGemma) each own different axes, and no one
 model dominates \citep{guard-bench}. Vyuha does not out-build any of these --- it \emph{composes} them
-behind a CPU fast layer and measures the resulting division of labour. Closest to our cascade,
-GuardChain \citep{guardchain} routes prompts Regex$\rightarrow$CPU$\rightarrow$GPU and reports that CPU
-classifiers fail out of distribution through \emph{confident} false negatives that never escalate; and
-\citet{layered-ensemble} show that the layers of a defence stack fail in correlated ways, so a stack must
-be measured end to end --- their seven-layer stack was indistinguishable from its strongest layer while
-refusing most benign prompts. Our head-on result (Table~\ref{tab:e2e}) is such an end-to-end measurement,
-at matched FPR, and finds the opposite outcome for this composition on jailbreaks and disguised text.
-Cascades are also attackable as systems: staged attacks break safeguard pipelines component by component
-\citep{stack}, and adversarial suffixes can steer an LLM cascade's escalation decisions \citep{cascade-attack}.
+behind a CPU fast layer and measures the resulting division of labour.
 \textbf{Adaptive attacks and hardening.} Static defenses fall to adaptive attackers:
 \citet{attacker-second} bypass twelve defenses at $>$90\% ASR, and PISmith \citep{pismith} trains an
 RL red-teamer, on the PIArena platform \citep{piarena}, that beats state-of-the-art prompt-injection
@@ -589,16 +490,9 @@ the methodology, which the individual detectors of \citet{promptshield}, \citet{
 A credible, modern LLM guardrail can be assembled from independent, individually cheap layers entirely
 on free compute, and --- crucially --- measured honestly, with confidence intervals, adaptive attacks,
 and a standardised benchmark, so that its real strengths and limits are visible rather than asserted.
-Measured as a whole, the composition beats the strongest single guard where attacks exploit what a
-content guard cannot see --- jailbreak framing and disguised text --- at a third of its cost, and only
-ties it where a guard is already the right tool.
 
 \section*{Limitations}
-The end-to-end comparison uses disguise families L1 was augmented against and jailbreaks from the same
-source as L1's training data (held out, but in-distribution), so its jailbreak and disguise gains are an
-upper estimate for unseen attack families; all systems remain weak on jailbreaks in absolute terms
-(at most 0.48 recall at 5\% FPR), and the 2\% FPR estimates have wide intervals (500 benign prompts per
-calibration half). The surface detector (L1) does not and should not catch harmful-topic or semantic attacks; those
+The surface detector (L1) does not and should not catch harmful-topic or semantic attacks; those
 depend entirely on the composed content guard, whose semantic ceiling we do not improve upon. Our own
 fine-tuned guard is jailbreak-only. The agent layer (L3) is a lightweight black-box approximation
 without the provenance guarantees of capability-based defenses; AgentDojo is run with a single agent model,
@@ -647,11 +541,6 @@ oversight and continuous red-teaming.
 \bibitem[Yin et~al.(2026)]{pismith} Chenlong Yin, Runpeng Geng, Yanting Wang, and Jinyuan Jia. 2026. PISmith: Reinforcement Learning-based Red Teaming for Prompt Injection Defenses. \emph{arXiv:2603.13026} (COLM 2026).
 \bibitem[Geng et~al.(2026)]{piarena} Runpeng Geng, Chenlong Yin, Yanting Wang, Ying Chen, and Jinyuan Jia. 2026. PIArena: A Platform for Prompt Injection Evaluation. \emph{arXiv:2604.08499} (ACL 2026).
 \bibitem[HASTE(2026)]{haste} Proactive Hardening of LLM Defenses with HASTE. 2026. \emph{arXiv:2601.19051}; NDSS.
-% TODO(authors): confirm author lists for guardchain and stack from their arXiv pages before submission.
-\bibitem[GuardChain(2025)]{guardchain} Do You Really Need a GPU to Guard Your LLM? CPU-Class Classifiers and Multi-Stage Pipelines for Safety Enforcement at Scale. 2025. \emph{arXiv:2512.19011}.
-\bibitem[Alotaibi et~al.(2026)]{layered-ensemble} Abrar Alotaibi, Muhammad Shahid Jabbar, Sadam Al-Azani, and Moataz Ahmed. 2026. Layered LLM Defenses as an Ensemble: Access Tiers, Inference Cost, and the Measured Failure Correlation Between Defense Layers. \emph{arXiv:2608.28327}.
-\bibitem[STACK(2025)]{stack} STACK: Adversarial Attacks on LLM Safeguard Pipelines. 2025. \emph{arXiv:2506.24068}.
-\bibitem[Sun et~al.(2026)]{cascade-attack} Zehan Sun, Dingfan Chen, and Songze Li. 2026. When Efficiency Backfires: Cascading LLMs Trigger Cascade Failure under Adversarial Attack. \emph{arXiv:2605.17288}.
 \end{thebibliography}
 
 \end{document}

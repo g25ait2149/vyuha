@@ -228,7 +228,7 @@ Self-harden (L5) & seen-family ASR & 0.11\,$\rightarrow$\,\textbf{0.00} \\
 Semantic (L2) & PAIR recall & \textbf{0.90} (L1: 0.07) \\
 NIST-RMF (L2) & recall, req.\ axes & \textbf{0.886} ($\approx$4B: 0.84) \\
  & benign FPR & 0.071 \\
-Agent inj.\ (L3) & AgentDojo ASR & 0.39\,$\rightarrow$\,\textbf{0.33} \\
+Agent inj.\ (L3) & AgentDojo ASR & \pending \\
 MCP poison (L3) & detection & \textbf{1.00} [0.87,1.00] \\
 Multi-turn (L5) & session detect & \textbf{0.71} [0.65,0.77] \\
  & per-message & 0.00 \\
@@ -410,11 +410,8 @@ Neither cascade row differs significantly from Granite~4.1 alone. ms: mean laten
 
 \paragraph{Agent and multi-turn defense (L3, L5).} On AgentDojo (all four suites, \emph{important\_instructions},
 gpt-oss-120b agent; injection ASR is the share of episodes in which the injection goal was executed, with
-errored episodes counted as successful attacks; 949 episodes per arm), L3 lowers injection ASR from 0.39
-[0.35,0.42] to 0.33 [0.30,0.36] ($p{=}0.015$) with no utility cost (0.50 vs.\ 0.52). The gain is confined to
-two suites --- Slack ($-0.15$, $p{=}0.02$) and Travel ($-0.16$, $p{=}0.005$) --- with no significant change
-in Banking or Workspace: a modest, real reduction, far from the capability-based guarantees of
-CaMeL \citep{camel}; injection-under-obfuscation
+errored episodes counted as successful attacks), L3 changes injection ASR from \pending{} to \pending{} at
+utility-under-attack \pending{} vs.\ \pending; injection-under-obfuscation
 detection is 1.00 versus 0.00--0.17 for a regex baseline. The MCP scanner detects 1.00 [0.87,1.00] of
 poisoned tool metadata at zero false positives on 25 poisoned / 27 benign tools. The session-level
 monitor flags 71\% [0.65,0.77] of modeled Crescendo escalations at 0\% benign FPR, versus 0\% for a

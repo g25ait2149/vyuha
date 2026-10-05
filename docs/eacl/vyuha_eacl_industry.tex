@@ -78,8 +78,9 @@ selective cascade that keeps the expensive guard off the hot path; (2) an \emph{
 methodology} for LLM-guard components --- recall-first, with Wilson confidence intervals, an
 adaptive-attack ablation, a standardised-benchmark reconstruction, and base-rate and contamination
 discipline; (3) a head-on, end-to-end comparison of the whole pipeline against single guards at matched
-false-positive rate, with ablations that attribute each gain to a layer; and (4) an honest account, at
-every layer, of where stronger work exists. No single
+false-positive rate, with ablations that attribute each gain to a layer; (4) three pitfalls in evaluating and composing guards --- verdict-position sensitivity,
+score saturation at strict FPR, and fail-open composition --- each found, measured and fixed; and (5) an
+honest account, at every layer, of where stronger work exists. No single
 component is a new algorithm; the contribution is the measured composition and its reproducibility.
 
 \begin{figure*}[t]
@@ -472,6 +473,34 @@ trade-off --- the null generalisation that motivates deploying L3 as a detection
 \label{tab:backends}
 \end{table}
 
+\subsection{Three pitfalls in evaluating and composing guards}
+Building and measuring Vyuha surfaced three failure modes that silently change conclusions. Each was
+found by a validity check, fixed, and pinned by a regression test; we report them because each would
+mislead any practitioner who composes or benchmarks LLM guards.
+
+\paragraph{(1) Verdict-position sensitivity.} A guard's score is only meaningful if read at the token
+where that guard actually states its verdict. Granite Guardian~4.1 emits an empty reasoning block and a
+\texttt{<score>} tag first, Llama Guard leading newlines, Qwen3Guard a \texttt{Safety:} prefix. Reading
+the first generated token instead gave Granite~4.1 an AUC of 0.19 (worse than chance) and Llama Guard~3
+zero recall at strict FPR; reading each guard at its own verdict position, admitted only after $\geq$90\%
+agreement with its own generated verdict, restored AUC 0.95 and 0.72. Benchmarks that score many guards
+with one generic reader can therefore misrank them.
+
+\paragraph{(2) Score saturation at strict FPR.} Converting verdict logits to probabilities saturates
+many benign scores at exactly 1.0; the benign quantile that defines a 2\% FPR threshold then ties at the
+maximum and no attack can exceed it. Our own 0.6B guard's recall at 2\% FPR read 0.27 under probabilities
+and 0.54 under raw log-odds on the same outputs. Matched-FPR comparisons should rank on log-odds and
+report the achieved FPR and the fraction of ties at the threshold.
+
+\paragraph{(3) Fail-open composition.} Related to the confident-miscalibration failure of CPU cascade
+stages \citep{guardchain}, but arising from a \emph{task mismatch} rather than distribution shift: layered
+guardrails commonly let a cheap first layer \emph{allow}
+low-risk traffic so the expensive guard is spared. Our L1 is a jailbreak detector: it scores 94\% of
+plain harmful requests below its allow threshold, so an ``allow below 0.20'' shortcut would have passed
+them without any content check --- a composed system strictly weaker than its own guard. Vyuha now lets
+L1 only \emph{block}; skipping the guard is opt-in. The general rule: a layer may decide on another
+layer's behalf only for the attack class it was calibrated on.
+
 \section{Deployment and Governance}
 Vyuha ships as a Python library, a FastAPI service (\texttt{/scan}, \texttt{/moderate},
 \texttt{/guard\_turn}), and a CLI, so a team can place it in front of or behind an LLM with a few
@@ -516,7 +545,15 @@ LLM09 Misinformation & L2/L4 response scoring \\
 \citep{promptshield} fine-tune a single classifier for a low-false-positive regime; open safety guards
 (Qwen3Guard, Granite Guardian, Llama Guard, WildGuard, ShieldGemma) each own different axes, and no one
 model dominates \citep{guard-bench}. Vyuha does not out-build any of these --- it \emph{composes} them
-behind a CPU fast layer and measures the resulting division of labour.
+behind a CPU fast layer and measures the resulting division of labour. Closest to our cascade,
+GuardChain \citep{guardchain} routes prompts Regex$\rightarrow$CPU$\rightarrow$GPU and reports that CPU
+classifiers fail out of distribution through \emph{confident} false negatives that never escalate; and
+\citet{layered-ensemble} show that the layers of a defence stack fail in correlated ways, so a stack must
+be measured end to end --- their seven-layer stack was indistinguishable from its strongest layer while
+refusing most benign prompts. Our head-on result (Table~\ref{tab:e2e}) is such an end-to-end measurement,
+at matched FPR, and finds the opposite outcome for this composition on jailbreaks and disguised text.
+Cascades are also attackable as systems: staged attacks break safeguard pipelines component by component
+\citep{stack}, and adversarial suffixes can steer an LLM cascade's escalation decisions \citep{cascade-attack}.
 \textbf{Adaptive attacks and hardening.} Static defenses fall to adaptive attackers:
 \citet{attacker-second} bypass twelve defenses at $>$90\% ASR, and PISmith \citep{pismith} trains an
 RL red-teamer, on the PIArena platform \citep{piarena}, that beats state-of-the-art prompt-injection
@@ -607,6 +644,11 @@ oversight and continuous red-teaming.
 \bibitem[Yin et~al.(2026)]{pismith} Chenlong Yin, Runpeng Geng, Yanting Wang, and Jinyuan Jia. 2026. PISmith: Reinforcement Learning-based Red Teaming for Prompt Injection Defenses. \emph{arXiv:2603.13026} (COLM 2026).
 \bibitem[Geng et~al.(2026)]{piarena} Runpeng Geng, Chenlong Yin, Yanting Wang, Ying Chen, and Jinyuan Jia. 2026. PIArena: A Platform for Prompt Injection Evaluation. \emph{arXiv:2604.08499} (ACL 2026).
 \bibitem[HASTE(2026)]{haste} Proactive Hardening of LLM Defenses with HASTE. 2026. \emph{arXiv:2601.19051}; NDSS.
+% TODO(authors): confirm author lists for guardchain and stack from their arXiv pages before submission.
+\bibitem[GuardChain(2025)]{guardchain} Do You Really Need a GPU to Guard Your LLM? CPU-Class Classifiers and Multi-Stage Pipelines for Safety Enforcement at Scale. 2025. \emph{arXiv:2512.19011}.
+\bibitem[Alotaibi et~al.(2026)]{layered-ensemble} Abrar Alotaibi, Muhammad Shahid Jabbar, Sadam Al-Azani, and Moataz Ahmed. 2026. Layered LLM Defenses as an Ensemble: Access Tiers, Inference Cost, and the Measured Failure Correlation Between Defense Layers. \emph{arXiv:2608.28327}.
+\bibitem[STACK(2025)]{stack} STACK: Adversarial Attacks on LLM Safeguard Pipelines. 2025. \emph{arXiv:2506.24068}.
+\bibitem[Sun et~al.(2026)]{cascade-attack} Zehan Sun, Dingfan Chen, and Songze Li. 2026. When Efficiency Backfires: Cascading LLMs Trigger Cascade Failure under Adversarial Attack. \emph{arXiv:2605.17288}.
 \end{thebibliography}
 
 \end{document}

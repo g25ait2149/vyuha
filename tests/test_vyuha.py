@@ -347,3 +347,17 @@ def test_guard_cascade_force_escalate():
     plain = GuardCascade(S(), Ex(), escalate_share=0.2, target_fpr=0.02).fit(ben)
     forced = GuardCascade(S(), Ex(), escalate_share=0.2, target_fpr=0.02, force_escalate=lambda t: "noisy" in t).fit(ben)
     assert plain.predict(["noisy attack"])[0] == 0 and forced.predict(["noisy attack"])[0] == 1
+
+
+def test_guard_prompt_clips_user_text_not_template():
+    """Long prompts must be clipped in the USER text so the guard's verdict header is never truncated (bug 2026-10-07)."""
+    from vyuha.guard.open_guard import _clip_user
+    class Tok:
+        def __call__(self, t, add_special_tokens=False):
+            class R: pass
+            r = R(); r.input_ids = str(t).split(); return r
+        def decode(self, ids): return " ".join(ids)
+    long = " ".join(f"w{i}" for i in range(3000))
+    out = _clip_user(Tok(), long, head=10, tail=5)
+    assert out.startswith("w0 ") and out.endswith("w2999") and "[...]" in out and len(out.split()) == 16
+    assert _clip_user(Tok(), "short text", head=10, tail=5) == "short text"

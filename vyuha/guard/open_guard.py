@@ -17,6 +17,16 @@ _UNSAFE_FIRST = ("yes", "unsafe", "harmful", "true", "risky")
 _SAFE_FIRST = ("no", "safe", "false")
 
 
+
+def _clip_user(tok, text, head=1024, tail=512):
+    """Clip USER text (keep the first `head` and last `tail` tokens) so the guard's own template is never truncated.
+    Truncating the formatted prompt from the right (the old behaviour) cut off the guard's closing instructions and
+    verdict header on long prompts, so the verdict was read at the wrong place (found 2026-10-07)."""
+    ids = tok(str(text), add_special_tokens=False).input_ids
+    if len(ids) <= head + tail:
+        return text
+    return tok.decode(ids[:head]) + " [...] " + tok.decode(ids[-tail:])
+
 def _verdict_unsafe(verdict):
     """Map a guard's short generated verdict to unsafe=1.0 / safe=0.0 across output styles:
     Qwen3Guard 'Safe/Controversial/Unsafe', Granite Guardian 'Yes/No' (Yes = unsafe), Llama Guard
@@ -226,7 +236,7 @@ class OpenGuard:
                     kw = {"guardian_config": {"risk_name": "harm"}}
                 else:
                     kw = {}
-                prompts.append(tok.apply_chat_template([{"role": "user", "content": t}],
+                prompts.append(tok.apply_chat_template([{"role": "user", "content": _clip_user(tok, t)}],
                                                        add_generation_prompt=True, tokenize=False, **kw))
             except Exception:
                 prompts.append(t)
@@ -240,8 +250,7 @@ class OpenGuard:
         verdicts = []
         for i in idxs:
             batch = prompts[i:i + batch_size]
-            enc = tok(batch, return_tensors="pt", padding=True, truncation=True,
-                      max_length=1024).to(self.model.device)
+            enc = tok(batch, return_tensors="pt", padding=True, truncation=False).to(self.model.device)
             with torch.no_grad():
                 gen = self.model.generate(**enc, max_new_tokens=max_new_tokens, do_sample=False,
                                           pad_token_id=tok.pad_token_id)
@@ -303,7 +312,7 @@ class OpenGuard:
         prompts = []
         for t in texts:
             try:
-                prompts.append(tok.apply_chat_template([{"role": "user", "content": t}],
+                prompts.append(tok.apply_chat_template([{"role": "user", "content": _clip_user(tok, t)}],
                                                        add_generation_prompt=True, tokenize=False))
             except Exception:
                 prompts.append(t)
@@ -317,8 +326,7 @@ class OpenGuard:
         out = []
         for i in idxs:
             batch = prompts[i:i + batch_size]
-            enc = tok(batch, return_tensors="pt", padding=True, truncation=True,
-                      max_length=1024).to(self.model.device)
+            enc = tok(batch, return_tensors="pt", padding=True, truncation=False).to(self.model.device)
             with torch.no_grad():
                 gen = self.model.generate(**enc, max_new_tokens=max_new_tokens, do_sample=False,
                                           pad_token_id=tok.pad_token_id,
@@ -397,12 +405,11 @@ class OpenGuard:
             prompts = []
             for t in texts[i:i + batch_size]:
                 try:
-                    prompts.append(tok.apply_chat_template([{"role": "user", "content": t}],
+                    prompts.append(tok.apply_chat_template([{"role": "user", "content": _clip_user(tok, t)}],
                                                            add_generation_prompt=True, tokenize=False, **tmpl_kw))
                 except Exception:
                     prompts.append(t)
-            enc = tok(prompts, return_tensors="pt", padding=True, truncation=True,
-                      max_length=max_length).to(dev)
+            enc = tok(prompts, return_tensors="pt", padding=True, truncation=False).to(dev)   # user text pre-clipped
             with torch.no_grad():
                 nt = self.model(**enc, logits_to_keep=1).logits[:, -1, :]   # last-token logits only
             lu = torch.logsumexp(nt[:, u_idx].float(), dim=1)
@@ -440,12 +447,12 @@ class OpenGuard:
             except Exception:
                 pass
         for p, r in _pairs:
-            msgs = [{"role": "user", "content": str(p)}, {"role": "assistant", "content": str(r)}]
+            msgs = [{"role": "user", "content": _clip_user(self.tok, p, 512, 256)}, {"role": "assistant", "content": _clip_user(self.tok, r)}]
             try:
                 text = self.tok.apply_chat_template(msgs, add_generation_prompt=True, tokenize=False)
             except Exception:
                 text = f"User: {p}\nAssistant: {r}"
-            enc = self.tok(text, return_tensors="pt", truncation=True, max_length=1024).to(self.model.device)
+            enc = self.tok(text, return_tensors="pt", truncation=False).to(self.model.device)
             with torch.no_grad():
                 gen = self.model.generate(**enc, max_new_tokens=16, do_sample=False,
                                           pad_token_id=self.tok.eos_token_id)

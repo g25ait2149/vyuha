@@ -622,6 +622,9 @@ be measured end to end --- their seven-layer stack was indistinguishable from it
 refusing most benign prompts. Our head-on results (Tables~\ref{tab:e2e}, \ref{tab:ood}) are such end-to-end measurements at matched
 FPR: the composition beats its strongest layer on encoded and disguised text, in and out of
 distribution, but its jailbreak advantage is in-distribution only.
+CASCADE \citep{cascade-eval} evaluates 15 defences and their combinations across pipeline stages against 19
+attacks under fixed query budgets and finds no single defence universally best; our study is narrower
+(one composition, three guards) but adds matched-FPR calibration and an out-of-distribution test whose rules were fixed in advance.
 Cascades are also attackable as systems: staged attacks break safeguard pipelines component by component
 \citep{stack}, and adversarial suffixes can steer an LLM cascade's escalation decisions \citep{cascade-attack}.
 Encoded and character-level evasions of guards are well documented \citep{hackett,emoji}, and semantic
@@ -733,6 +736,7 @@ oversight and continuous red-teaming.
 \bibitem[Hackett et~al.(2025)]{hackett} William Hackett, Lewis Birch, Stefan Trawicki, Neeraj Suri, and Peter Garraghan. 2025. Bypassing LLM Guardrails: An Empirical Analysis of Evasion Attacks against Prompt Injection and Jailbreak Detection Systems. In \emph{Proc.\ LLMSEC Workshop}. \emph{arXiv:2504.11168}.
 \bibitem[Wei et~al.(2025)]{emoji} Emoji Attack: Enhancing Jailbreak Attacks Against Judge LLM Detection. 2025. \emph{arXiv:2411.01077} (ICML 2025).
 \bibitem[Chao et~al.(2024)]{jbb} Patrick Chao, Edoardo Debenedetti, Alexander Robey, Maksym Andriushchenko, Francesco Croce, Vikash Sehwag, Edgar Dobriban, Nicolas Flammarion, George J. Pappas, Florian Tram\`er, Hamed Hassani, and Eric Wong. 2024. JailbreakBench: An Open Robustness Benchmark for Jailbreaking Large Language Models. In \emph{NeurIPS Datasets and Benchmarks}.
+\bibitem[Luo and Han(2026)]{cascade-eval} Jiale Luo and Eric Han. 2026. CASCADE Against Jailbreaks: Combination Across Stages with Controlled Attack-Defense Evaluation. In \emph{Findings of EMNLP}. \emph{arXiv:2609.21793}.
 \bibitem[Hughes et~al.(2024)]{bon} John Hughes, Sara Price, Aengus Lynch, Rylan Schaeffer, Fazl Barez, Sanmi Koyejo, Henry Sleight, Erik Jones, Ethan Perez, and Mrinank Sharma. 2024. Best-of-N Jailbreaking. \emph{arXiv:2412.03556}.
 \bibitem[Glukhov et~al.(2024)]{glukhov} David Glukhov, Ilia Shumailov, Yarin Gal, Nicolas Papernot, and Vardan Papyan. 2024. Position: Fundamental Limitations of LLM Censorship Necessitate New Approaches. In \emph{Proc.\ ICML}.
 \end{thebibliography}

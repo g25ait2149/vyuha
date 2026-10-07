@@ -85,7 +85,34 @@ def _base_normalize(text) -> str:
     return "".join(CONFUSABLE.get(ch.lower(), ch) for ch in base)
 
 
-def normalize_views(text) -> list:
+HEX_RE = re.compile(r"\b(?:[0-9a-fA-F]{2}){8,}\b")
+REVERSE_CUE = re.compile(r"revers|backwards|right[\s-]?to[\s-]?left", re.I)
+
+
+def _decode_hex_blobs(raw: str):
+    views = []
+    for m in HEX_RE.findall(raw):
+        try:
+            decoded = bytes.fromhex(m).decode("utf-8", "ignore")
+            if decoded and re.search(r"[A-Za-z]{3}", decoded):
+                views.append("[hex] " + decoded)
+        except ValueError:
+            pass
+    return views
+
+
+def case_noise(text) -> float:
+    """Share of alphabetic words (>= 3 letters) whose capitalisation is irregular (not lower, Title or
+    UPPER). Random-capitalisation augmentation (Best-of-N jailbreaking) drives this towards ~0.9; normal
+    prose sits near 0. Used to force such inputs past the cheap screen to the expert guard."""
+    words = [w for w in re.findall(r"[^\W\d_]{3,}", str(text))]
+    if not words:
+        return 0.0
+    odd = sum(1 for w in words if not (w.islower() or w.isupper() or w.istitle()))
+    return odd / len(words)
+
+
+def normalize_views(text, version: int = 2) -> list:
     """De-obfuscation views as a LIST: the clean base first, then any recovered views (decoded
     Base64, de-ROT13, de-leetspeak, de-spaced). Scoring each view SEPARATELY and taking the max
     lets a short recovered instruction (e.g. from character-spacing) be caught without a long raw
@@ -97,9 +124,13 @@ def normalize_views(text) -> list:
     views += _decode_base64_blobs(text)
     # Unicode tag smuggling: the base view strips tag characters, which would DELETE a hidden payload
     # (fail-open). Decode them to ASCII as their own view so the guard sees what the model may read.
-    tags = "".join(chr(ord(ch) - 0xE0000) for ch in text if 0xE0020 <= ord(ch) <= 0xE007E)
-    if tags.strip():
-        views.append("[tags] " + tags)
+    if version >= 2:
+        tags = "".join(chr(ord(ch) - 0xE0000) for ch in text if 0xE0020 <= ord(ch) <= 0xE007E)
+        if tags.strip():
+            views.append("[tags] " + tags)
+        views += _decode_hex_blobs(text)
+        if REVERSE_CUE.search(base):
+            views.append("[reversed] " + base[::-1])
     # ROT13 hint (cheap, only when an explicit cue is present).
     if re.search(r"rot[\s-]?13", base, re.I):
         try:
@@ -115,13 +146,16 @@ def normalize_views(text) -> list:
     return views
 
 
-def normalize(text, full: bool = True) -> str:
+def normalize(text, full: bool = True, version: int = 2) -> str:
     """De-obfuscate `text`. full=False -> just the cleaned base; full=True -> base plus the
     recovered views joined into one string (kept for back-compat; new code that wants to avoid
-    dilution should score normalize_views() independently and take the max)."""
+    dilution should score normalize_views() independently and take the max).
+    version=1 reproduces the L0 used in the paper's first two head-on runs (tag characters stripped,
+    no hex / reversed views); version=2 (default) decodes tag smuggling and adds hex and cue-triggered
+    reversed views."""
     if not full:
         return _base_normalize(text)
-    return "  ".join(normalize_views(text))
+    return "  ".join(normalize_views(text, version=version))
 
 
 def spotlight(untrusted: str, marker: str = "DATA") -> str:

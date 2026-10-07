@@ -161,7 +161,7 @@ class GuardCascade:
         cas.predict(texts)   # 0/1 flags;  cas.last_escalated -> which inputs reached the expert
     """
     def __init__(self, screen, expert, escalate_share=0.2, target_fpr=0.02,
-                 screen_score=None, expert_score=None):
+                 screen_score=None, expert_score=None, force_escalate=None):
         assert 0 < escalate_share <= 1 and 0 < target_fpr < 1
         self.screen, self.expert = screen, expert
         self.escalate_share, self.target_fpr = escalate_share, target_fpr
@@ -169,12 +169,15 @@ class GuardCascade:
         self._e = expert_score or (lambda X: np.asarray(expert.proba(X), dtype=float))
         self.screen_thr = self.expert_thr = None
         self.last_escalated = None
+        # Optional predicate: inputs for which it is True skip the screen and always reach the expert
+        # (e.g. lambda t: case_noise(t) >= 0.3 against Best-of-N augmentation, which the screen misses).
+        self.force_escalate = force_escalate
 
     def fit(self, benign_X):
         benign_X = list(benign_X)
         s = np.asarray(self._s(benign_X), dtype=float)
         self.screen_thr = float(np.quantile(s, 1 - self.escalate_share))
-        esc = [x for x, v in zip(benign_X, s) if v > self.screen_thr]
+        esc = [x for x, v in zip(benign_X, s) if v > self.screen_thr or self._forced(x)]
         k = int(np.floor(self.target_fpr * len(benign_X)))        # benign flags allowed in total
         e = np.sort(np.asarray(self._e(esc), dtype=float))[::-1] if esc else np.array([])
         self.expert_thr = float(e[k]) if k < len(e) else float("-inf")
@@ -184,7 +187,7 @@ class GuardCascade:
         assert self.screen_thr is not None, "call fit(benign_X) first"
         X = list(X)
         s = np.asarray(self._s(X), dtype=float)
-        esc = s > self.screen_thr
+        esc = (s > self.screen_thr) | np.array([self._forced(x) for x in X], dtype=bool)
         self.last_escalated = esc
         flags = np.zeros(len(X), dtype=int)
         idx = np.where(esc)[0]
@@ -192,6 +195,9 @@ class GuardCascade:
             e = np.asarray(self._e([X[i] for i in idx]), dtype=float)
             flags[idx] = (e > self.expert_thr).astype(int)
         return flags
+
+    def _forced(self, x):
+        return bool(self.force_escalate(x)) if self.force_escalate is not None else False
 
     def proba(self, X):
         """Pipeline-compatible score: 1.0 for a flagged input, 0.0 otherwise (the cascade is a decision)."""

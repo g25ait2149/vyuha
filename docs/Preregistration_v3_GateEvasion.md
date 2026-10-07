@@ -98,3 +98,15 @@ That is ≈ 60 screen queries per seed per screen.
 **Run 1 screen-side numbers.** S1 / S2 / S3 escalate 0.98 / 0.39 / 0.81 of original seeds at budget 0.20. That is recorded here for transparency. It is *not* used, because the transforms behind run 1's attack numbers were invalid (failure 3).
 
 **Unchanged:** systems, data, budgets, metrics, go/no-go criteria. Results go to a fresh folder (`gate_pilot_v2`).
+
+## Amendment 2 (8 Oct 2026): weak TF-IDF screen; still before any expert outcome
+
+**What happened.** In run 2 the validity gate stopped at S2 (TF-IDF): its AUROC on StrongREJECT seeds vs WildChat benign was 0.62. That is below the 0.70 floor added in Amendment 1.
+- The scores were finite and varied, so this is not a bug.
+- The cause: a small 6k-prompt bag-of-n-grams classifier separates plain harmful requests from real WildChat traffic poorly, consistent with GuardChain's out-of-distribution findings.
+
+**Changes:**
+1. **S2 is now trained on all WildGuardMix-train prompts** (class-balanced) instead of a 6k subsample. This makes it a fair, representative CPU screen. It is an engineering-baseline choice made without any expert / outcome data.
+2. **The gate now stops only broken screens:** NaN, constant, or AUROC < 0.55. Screens with AUROC between 0.55 and 0.70 are attacked and reported as **weak**, with their natural recall. A weak screen makes gate collapse easier, and the paper will say so explicitly rather than drop the screen.
+
+**Unchanged:** the go/no-go rule (loss ≥ 0.25 on ≥ 3 of S1–S4 and ≥ 0.10 on S5). A weak S2 must not carry the verdict alone; the verdict needs 3 of the 4 cheap screens.

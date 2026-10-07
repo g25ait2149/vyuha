@@ -46,8 +46,8 @@ adaptive-attack ablation, a standardised-benchmark reconstruction, and base-rate
 \emph{full reproducibility on a single free GPU}. Measured head-on as a whole system at matched false-positive rate against Granite Guardian~4.1-8B,
 Vyuha catches more jailbreaks (+0.20) and disguised requests (+0.37) on in-distribution pools at about a
 third of its compute. Out of distribution, only the second gain survives: on unseen obfuscations Vyuha
-beats both Granite~4.1 (+0.65) and Llama~Guard~3-8B (+0.61), but on adversarial jailbreaks, JailbreakBench artifacts and plain harmful
-requests it ties Granite and trails Llama~Guard~3 (by 0.25 on JailbreakBench), and a Best-of-N augmentation attacker evades it as
+beats both Granite~4.1 (+0.65) and Llama~Guard~3-8B (+0.61), but on adversarial and plain harmful
+requests it ties Granite and trails Llama~Guard~3, and a Best-of-N augmentation attacker evades it as
 easily as either small guard. At the layer level, with 95\%
 confidence intervals: the CPU fast layer matches a GPU neural guard's obfuscation robustness at
 $\sim$8\,ms; against an adaptive attacker, normalisation alone leaves ASR at 1.00 while adversarial
@@ -213,48 +213,45 @@ comparison out of distribution.
 
 \subsection{Out of distribution and under adaptive augmentation}
 We re-ran the same pre-registered rules on data none of the layers was built or tuned on: 300
-WildGuardMix-test \emph{adversarial} harmful prompts, 182 JailbreakBench attack artifacts (PAIR and GCG
-jailbreaks, \citealp{jbb}), 200 HarmBench requests, and 700 harmful requests
+WildGuardMix-test \emph{adversarial} harmful prompts, 200 HarmBench requests, and 700 harmful requests
 under seven obfuscations (five L0 was not designed for --- hex, reversed text, double spacing, Unicode tag
 smuggling, leetspeak$+$homoglyphs --- and two controls). Thresholds are calibrated on a \emph{hard}
 benign pool of 1{,}000 prompts that resemble attacks (WildGuardMix adversarial-benign, XSTest-safe,
 OR-Bench-hard). We add Llama~Guard~3-8B as a second strong baseline, and an adaptive black-box attacker:
 Best-of-N augmentation \citep{bon} (random capitalisation, word scrambling, character noise; 20 variants
 for each of 60 HarmBench requests; a request evades if any variant is allowed --- an upper bound on attack
-success, since we do not check that the target still understands it).
+success, since we do not check that the target still understands it). The JailbreakBench artifact set
+failed to load in this run and is omitted.
 
 \begin{table*}[t]
 \centering\footnotesize\setlength{\tabcolsep}{4pt}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{lcccccccccc}
+\begin{tabular}{lcccccccc}
 \toprule
-& \multicolumn{5}{c}{At 2\% benign FPR (hard benign pool)} & \multicolumn{5}{c}{At 5\% benign FPR (hard benign pool)} \\
-\cmidrule(lr){2-6}\cmidrule(lr){7-11}
-System & Adversarial & JBB & HarmBench & Unseen obf. & BoN evasion$\downarrow$ & Adversarial & JBB & HarmBench & Unseen obf. & BoN evasion$\downarrow$ \\
+& \multicolumn{4}{c}{At 2\% benign FPR (hard benign pool)} & \multicolumn{4}{c}{At 5\% benign FPR (hard benign pool)} \\
+\cmidrule(lr){2-5}\cmidrule(lr){6-9}
+System & Adversarial & HarmBench & Unseen obf. & BoN evasion$\downarrow$ & Adversarial & HarmBench & Unseen obf. & BoN evasion$\downarrow$ \\
 \midrule
-Qwen3Guard-0.6B alone          & 0.12 & 0.10 & 0.62 & 0.01 & 1.00 & 0.26 & 0.33 & 0.78 & 0.04 & 1.00 \\
-Granite Guardian 4.1-8B alone  & 0.08 & 0.34 & 0.83 & 0.05 & 1.00 & 0.14 & 0.47 & 0.87 & 0.06 & 1.00 \\
-Llama Guard 3-8B alone         & \textbf{0.16} & \textbf{0.60} & \textbf{0.89} & 0.08 & \textbf{0.90} & \textbf{0.30} & \textbf{0.75} & \textbf{0.94} & 0.24 & \textbf{0.51} \\
-\textbf{Vyuha (whole pipeline)} & 0.10 & 0.35 & 0.82 & \textbf{0.69} & 1.00 & 0.18 & 0.48 & 0.85 & \textbf{0.73} & 1.00 \\
-\quad without L1               & 0.08 & 0.40 & 0.83 & 0.35 & 1.00 & 0.14 & 0.57 & 0.86 & 0.40 & 1.00 \\
-\quad without L0 (raw text)    & 0.12 & 0.36 & 0.82 & 0.58 & 1.00 & 0.20 & 0.48 & 0.86 & 0.62 & 1.00 \\
+Qwen3Guard-0.6B alone          & 0.12 & 0.62 & 0.01 & 1.00 & 0.26 & 0.78 & 0.04 & 1.00 \\
+Granite Guardian 4.1-8B alone  & 0.09 & 0.83 & 0.05 & 1.00 & 0.14 & 0.87 & 0.06 & 1.00 \\
+Llama Guard 3-8B alone         & \textbf{0.17} & \textbf{0.89} & 0.08 & \textbf{0.89} & \textbf{0.30} & \textbf{0.93} & 0.24 & \textbf{0.50} \\
+\textbf{Vyuha (whole pipeline)} & 0.10 & 0.82 & \textbf{0.69} & 1.00 & 0.18 & 0.85 & \textbf{0.73} & 1.00 \\
+\quad without L1               & 0.08 & 0.83 & 0.35 & 1.00 & 0.14 & 0.86 & 0.40 & 1.00 \\
+\quad without L0 (raw text)    & 0.12 & 0.83 & 0.58 & 1.00 & 0.20 & 0.86 & 0.61 & 1.00 \\
 \midrule
-Vyuha $-$ Granite~4.1 [95\% CI] & +0.02 [$-$.03,.08] & +0.01 [$-$.07,.10] & $-$0.02 [$-$.05,.03] & \textbf{+0.65} [.61,.69] & 0.00 & +0.04 [$-$.01,.09] & +0.01 [$-$.06,.11] & $-$0.02 [$-$.05,.02] & \textbf{+0.67} [.62,.72] & 0.00 \\
-Vyuha $-$ Llama Guard~3        & $-$0.06 [$-$.14,.02] & $-$\textbf{0.25} [$-$.38,$-$.12] & $-$\textbf{0.07} [$-$.14,$-$.01] & \textbf{+0.62} [.56,.67] & +0.10 & $-$\textbf{0.12} [$-$.21,$-$.03] & $-$\textbf{0.27} [$-$.39,$-$.17] & $-$\textbf{0.09} [$-$.15,$-$.04] & \textbf{+0.49} [.37,.58] & +0.49 \\
+Vyuha $-$ Granite~4.1 [95\% CI] & +0.02 [$-$.03,.07] & $-$0.01 [$-$.05,.02] & \textbf{+0.65} [.61,.69] & 0.00 & +0.04 [$-$.01,.10] & $-$0.02 [$-$.05,.02] & \textbf{+0.67} [.61,.72] & 0.00 \\
+Vyuha $-$ Llama Guard~3        & $-$0.06 [$-$.14,.01] & $-$\textbf{0.07} [$-$.13,$-$.02] & \textbf{+0.61} [.55,.67] & +0.11 & $-$\textbf{0.12} [$-$.22,$-$.03] & $-$\textbf{0.08} [$-$.14,$-$.04] & \textbf{+0.49} [.37,.58] & +0.50 \\
 \bottomrule
 \end{tabular}}
 \caption{Out-of-distribution head-on comparison (same pre-registered rules as Table~\ref{tab:e2e}; 500
 splits). BoN evasion = share of 60 requests with at least one of 5 Best-of-N variants allowed (lower is
-better). JBB = JailbreakBench PAIR/GCG artifacts. Bold in difference rows: 95\% interval excludes 0. Vyuha's latency is 192\,ms vs 595\,ms.}
+better). Bold in difference rows: 95\% interval excludes 0. Vyuha's latency is 192\,ms vs 595\,ms.}
 \label{tab:ood}
 \end{table*}
 
 Table~\ref{tab:ood} narrows the headline. \textbf{Out of distribution, Vyuha's jailbreak advantage does not
-transfer}: on adversarial WildGuardMix prompts and on the JailbreakBench PAIR/GCG artifacts it is tied with
-Granite~4.1 (0.35 vs 0.34 on JailbreakBench) and trails Llama~Guard~3 (0.60, significantly), which is also
-significantly better on plain HarmBench requests. L1 adds nothing on these new jailbreaks (it fires on
-almost none of them) and only consumes a quarter of the budget: without L1, Vyuha reaches 0.40 on
-JailbreakBench. The strongest single guard therefore depends on
+transfer}: on adversarial WildGuardMix prompts it is tied with Granite~4.1 and trails Llama~Guard~3, which
+is also significantly better on plain HarmBench requests. The strongest single guard therefore depends on
 the data, and our earlier ``strongest single guard'' was strongest only on our own pools.
 \textbf{The gain that does transfer is on encoded and obfuscated input}: $+0.65$ over Granite~4.1 and
 $+0.61$ over Llama~Guard~3 at 2\% FPR, at a third of the latency. L1 contributes most of it (without L1:
@@ -265,7 +262,7 @@ fail-open bug this run exposed (now fixed: L0 decodes tag characters into a sepa
 reported are from before the fix). Under Best-of-N augmentation every system except Llama~Guard~3 is evaded
 for all 60 requests within five variants; Vyuha inherits the weakness of its 0.6B screen, because a variant
 the screen scores low never reaches the expert. In an exploratory, post-hoc run (not pre-registered)
-replacing Granite~4.1 with Llama~Guard~3 as the cascade expert recovers Llama~Guard~3's adversarial, JailbreakBench (0.56 vs 0.60) and
+replacing Granite~4.1 with Llama~Guard~3 as the cascade expert recovers Llama~Guard~3's adversarial and
 plain-harmful recall within the confidence interval while keeping the obfuscation gain ($+0.55$), but
 still not its Best-of-N robustness, which the screen gates away. The remaining subsections report each
 layer's own evidence.
@@ -667,8 +664,8 @@ the cascade matters, and the cheap screen in front of it gates away the expert's
 
 \section*{Limitations}
 The in-distribution comparison (Table~\ref{tab:e2e}) overstates the jailbreak gain, which did not
-survive out of distribution (Table~\ref{tab:ood}); the out-of-distribution run uses one augmentation
-attacker, and measures evasion rather than target-model harm; all systems remain weak on jailbreaks in absolute terms
+survive out of distribution (Table~\ref{tab:ood}); the out-of-distribution run lacks the JailbreakBench
+artifact set, uses one augmentation attacker, and measures evasion rather than target-model harm; all systems remain weak on jailbreaks in absolute terms
 (at most 0.48 recall at 5\% FPR), and the 2\% FPR estimates have wide intervals (500 benign prompts per
 calibration half). The surface detector (L1) does not and should not catch harmful-topic or semantic attacks; those
 depend entirely on the composed content guard, whose semantic ceiling we do not improve upon. Our own
@@ -732,7 +729,6 @@ oversight and continuous red-teaming.
 \bibitem[PIDS-Bench(2026)]{pidsbench} PIDS-Bench: Evaluating Prompt-Injection Detectors Under Over-Defense, Obfuscation, and Distribution Shift. 2026. \emph{arXiv:2609.15017}.
 \bibitem[Hackett et~al.(2025)]{hackett} William Hackett, Lewis Birch, Stefan Trawicki, Neeraj Suri, and Peter Garraghan. 2025. Bypassing LLM Guardrails: An Empirical Analysis of Evasion Attacks against Prompt Injection and Jailbreak Detection Systems. In \emph{Proc.\ LLMSEC Workshop}. \emph{arXiv:2504.11168}.
 \bibitem[Wei et~al.(2025)]{emoji} Emoji Attack: Enhancing Jailbreak Attacks Against Judge LLM Detection. 2025. \emph{arXiv:2411.01077} (ICML 2025).
-\bibitem[Chao et~al.(2024)]{jbb} Patrick Chao, Edoardo Debenedetti, Alexander Robey, Maksym Andriushchenko, Francesco Croce, Vikash Sehwag, Edgar Dobriban, Nicolas Flammarion, George J. Pappas, Florian Tram\`er, Hamed Hassani, and Eric Wong. 2024. JailbreakBench: An Open Robustness Benchmark for Jailbreaking Large Language Models. In \emph{NeurIPS Datasets and Benchmarks}.
 \bibitem[Hughes et~al.(2024)]{bon} John Hughes, Sara Price, Aengus Lynch, Rylan Schaeffer, Fazl Barez, Sanmi Koyejo, Henry Sleight, Erik Jones, Ethan Perez, and Mrinank Sharma. 2024. Best-of-N Jailbreaking. \emph{arXiv:2412.03556}.
 \bibitem[Glukhov et~al.(2024)]{glukhov} David Glukhov, Ilia Shumailov, Yarin Gal, Nicolas Papernot, and Vardan Papyan. 2024. Position: Fundamental Limitations of LLM Censorship Necessitate New Approaches. In \emph{Proc.\ ICML}.
 \end{thebibliography}

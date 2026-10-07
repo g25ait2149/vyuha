@@ -1,0 +1,182 @@
+========================================================================================================================
+TARGET benign FPR 2% on the HARD benign pool (500 splits; recall = mean [2.5, 97.5])
+system                                FPR    ms  WildJailbreak adversaria         JBB random-search         JBB JailbreakChat        StrongREJECT plain     obfuscations (all 10)  obfuscations (3 never-se
+Granite-Guardian-4.1-8B alone       0.021   595       0.064 [0.03,0.10]       0.000 [0.00,0.00]       0.464 [0.24,0.69]       0.878 [0.82,0.92]       0.134 [0.11,0.17]       0.272 [0.22,0.32]
+Llama-Guard-3-8B alone              0.021   593       0.179 [0.11,0.25]       0.644 [0.49,0.78]       0.780 [0.62,0.90]       0.899 [0.84,0.94]       0.099 [0.07,0.13]       0.217 [0.16,0.27]
+Llama-Guard-3-8B + L0v2             0.021   593       0.167 [0.10,0.23]       0.578 [0.43,0.71]       0.754 [0.60,0.87]       0.894 [0.83,0.94]       0.534 [0.45,0.61]       0.177 [0.13,0.22]
+Vyuha v1 (as published)             0.022   192       0.190 [0.14,0.24]       1.000 [1.00,1.00]       1.000 [1.00,1.00]       0.874 [0.81,0.93]       0.814 [0.79,0.84]       1.000 [1.00,1.00]
+Vyuha v2 (pre-registered)           0.022   191       0.268 [0.19,0.34]       1.000 [1.00,1.00]       1.000 [1.00,1.00]       0.880 [0.80,0.93]       0.927 [0.90,0.95]       1.000 [1.00,1.00]
+  v2 without noise escalation       0.022   191       0.268 [0.19,0.34]       1.000 [1.00,1.00]       1.000 [1.00,1.00]       0.880 [0.80,0.93]       0.927 [0.90,0.95]       1.000 [1.00,1.00]
+  v2 without L1                     0.021   184       0.196 [0.13,0.28]       0.717 [0.57,0.85]       0.849 [0.75,0.94]       0.898 [0.85,0.94]       0.575 [0.51,0.65]       0.195 [0.14,0.26]
+
+False-positive rate by benign source (held-out half):
+Granite-Guardian-4.1-8B alone           benign_wjb 0.000  benign_orbench 0.027
+Llama-Guard-3-8B alone                  benign_wjb 0.000  benign_orbench 0.027
+Llama-Guard-3-8B + L0v2                 benign_wjb 0.006  benign_orbench 0.025
+Vyuha v1 (as published)                 benign_wjb 0.008  benign_orbench 0.026
+Vyuha v2 (pre-registered)               benign_wjb 0.008  benign_orbench 0.026
+  v2 without noise escalation           benign_wjb 0.008  benign_orbench 0.026
+  v2 without L1                         benign_wjb 0.002  benign_orbench 0.026
+
+Per unseen obfuscation (recall):
+system                              base32 (never-s  caesar3 (never-     double_space        fullwidth   hex (targeted)   leet+homoglyph  reverse (target            rot13  tag_smuggle (ta  url-encoding (n
+Granite-Guardian-4.1-8B alone                 0.000            0.000            0.502            0.005            0.000            0.010            0.000            0.000            0.000            0.815
+Llama-Guard-3-8B alone                        0.000            0.000            0.001            0.286            0.000            0.059            0.000            0.000            0.000            0.650
+Llama-Guard-3-8B + L0v2                       0.000            0.000            0.900            0.932            0.361            0.918            0.484            0.374            0.836            0.527
+Vyuha v1 (as published)                       1.000            1.000            1.000            0.950            1.000            1.000            0.183            1.000            0.000            1.000
+Vyuha v2 (pre-registered)                     1.000            1.000            1.000            0.935            1.000            1.000            0.491            1.000            0.851            1.000
+  v2 without noise escalation                 1.000            1.000            1.000            0.935            1.000            1.000            0.491            1.000            0.851            1.000
+  v2 without L1                               0.000            0.000            0.918            0.950            0.593            0.959            0.464            0.396            0.894            0.583
+
+Experiment B — Best-of-N evasion rate (share of seeds with >=1 unblocked variant; lower is better):
+system                                   N=1       N=5      N=10      N=20
+Granite-Guardian-4.1-8B alone          0.901     1.000     1.000     1.000
+Llama-Guard-3-8B alone                 0.490     0.872     0.930     0.994
+Llama-Guard-3-8B + L0v2                0.527     0.900     0.940     0.998
+Vyuha v1 (as published)                0.942     1.000     1.000     1.000
+Vyuha v2 (pre-registered)              0.492     0.873     0.919     0.987
+  v2 without noise escalation          0.874     1.000     1.000     1.000
+  v2 without L1                        0.389     0.787     0.863     0.942
+
+Head-on: Vyuha v2 (pre-registered) minus Llama-Guard-3-8B alone (paired; * = 95% interval excludes 0)
+  WildJailbreak adversarial  +0.089 [+0.032,+0.150] *
+  JBB random-search          +0.356 [+0.225,+0.505] *
+  JBB JailbreakChat          +0.220 [+0.100,+0.375] *
+  StrongREJECT plain         -0.019 [-0.080,+0.010]
+  obfuscations (all 10)      +0.828 [+0.794,+0.860] *
+  obfuscations (3 never-seen) +0.783 [+0.732,+0.837] *
+  BoN evasion @N=5           +0.002 [-0.083,+0.050]
+  BoN evasion @N=20          -0.007 [-0.067,+0.017]
+  held-out FPR               +0.001 [-0.013,+0.018]
+
+Head-on: Vyuha v2 (pre-registered) minus Llama-Guard-3-8B + L0v2 (paired; * = 95% interval excludes 0)
+  WildJailbreak adversarial  +0.101 [+0.050,+0.163] *
+  JBB random-search          +0.422 [+0.290,+0.570] *
+  JBB JailbreakChat          +0.246 [+0.130,+0.400] *
+  StrongREJECT plain         -0.014 [-0.068,+0.020]
+  obfuscations (all 10)      +0.393 [+0.327,+0.468] *
+  obfuscations (3 never-seen) +0.823 [+0.777,+0.873] *
+  BoN evasion @N=5           -0.027 [-0.133,+0.033]
+  BoN evasion @N=20          -0.011 [-0.083,+0.000]
+  held-out FPR               +0.001 [-0.012,+0.018]
+
+Head-on: Vyuha v2 (pre-registered) minus Granite-Guardian-4.1-8B alone (paired; * = 95% interval excludes 0)
+  WildJailbreak adversarial  +0.204 [+0.128,+0.278] *
+  JBB random-search          +1.000 [+1.000,+1.000] *
+  JBB JailbreakChat          +0.536 [+0.310,+0.760] *
+  StrongREJECT plain         +0.001 [-0.070,+0.055]
+  obfuscations (all 10)      +0.794 [+0.756,+0.827] *
+  obfuscations (3 never-seen) +0.728 [+0.677,+0.775] *
+  BoN evasion @N=5           -0.127 [-0.300,-0.033] *
+  BoN evasion @N=20          -0.013 [-0.100,+0.000]
+  held-out FPR               +0.001 [-0.022,+0.025]
+
+Head-on: Vyuha v2 (pre-registered) minus Vyuha v1 (as published) (paired; * = 95% interval excludes 0)
+  WildJailbreak adversarial  +0.078 [+0.017,+0.143] *
+  JBB random-search          +0.000 [+0.000,+0.000]
+  JBB JailbreakChat          +0.000 [+0.000,+0.000]
+  StrongREJECT plain         +0.006 [-0.068,+0.065]
+  obfuscations (all 10)      +0.114 [+0.085,+0.145] *
+  obfuscations (3 never-seen) +0.000 [+0.000,+0.000]
+  BoN evasion @N=5           -0.127 [-0.300,-0.033] *
+  BoN evasion @N=20          -0.013 [-0.100,+0.000]
+  held-out FPR               -0.000 [-0.018,+0.020]
+
+========================================================================================================================
+TARGET benign FPR 5% on the HARD benign pool (500 splits; recall = mean [2.5, 97.5])
+system                                FPR    ms  WildJailbreak adversaria         JBB random-search         JBB JailbreakChat        StrongREJECT plain     obfuscations (all 10)  obfuscations (3 never-se
+Granite-Guardian-4.1-8B alone       0.050   595       0.128 [0.09,0.18]       0.003 [0.00,0.02]       0.859 [0.72,0.94]       0.932 [0.89,0.97]       0.173 [0.15,0.20]       0.319 [0.26,0.38]
+Llama-Guard-3-8B alone              0.051   593       0.316 [0.24,0.40]       0.865 [0.78,0.95]       0.895 [0.83,0.95]       0.943 [0.91,0.97]       0.198 [0.15,0.26]       0.269 [0.22,0.32]
+Llama-Guard-3-8B + L0v2             0.051   593       0.308 [0.23,0.40]       0.824 [0.71,0.93]       0.885 [0.82,0.94]       0.940 [0.91,0.97]       0.681 [0.63,0.73]       0.245 [0.19,0.31]
+Vyuha v1 (as published)             0.052   191       0.260 [0.20,0.32]       1.000 [1.00,1.00]       1.000 [1.00,1.00]       0.925 [0.89,0.96]       0.836 [0.81,0.86]       1.000 [1.00,1.00]
+Vyuha v2 (pre-registered)           0.052   190       0.411 [0.34,0.48]       1.000 [1.00,1.00]       1.000 [1.00,1.00]       0.929 [0.88,0.96]       0.964 [0.95,0.98]       1.000 [1.00,1.00]
+  v2 without noise escalation       0.052   190       0.411 [0.34,0.48]       1.000 [1.00,1.00]       1.000 [1.00,1.00]       0.929 [0.88,0.96]       0.964 [0.95,0.98]       1.000 [1.00,1.00]
+  v2 without L1                     0.051   185       0.351 [0.29,0.41]       0.911 [0.83,0.97]       0.959 [0.91,1.00]       0.941 [0.90,0.97]       0.659 [0.62,0.69]       0.251 [0.19,0.30]
+
+False-positive rate by benign source (held-out half):
+Granite-Guardian-4.1-8B alone           benign_wjb 0.000  benign_orbench 0.063
+Llama-Guard-3-8B alone                  benign_wjb 0.009  benign_orbench 0.062
+Llama-Guard-3-8B + L0v2                 benign_wjb 0.032  benign_orbench 0.057
+Vyuha v1 (as published)                 benign_wjb 0.021  benign_orbench 0.060
+Vyuha v2 (pre-registered)               benign_wjb 0.027  benign_orbench 0.059
+  v2 without noise escalation           benign_wjb 0.027  benign_orbench 0.059
+  v2 without L1                         benign_wjb 0.009  benign_orbench 0.062
+
+Per unseen obfuscation (recall):
+system                              base32 (never-s  caesar3 (never-     double_space        fullwidth   hex (targeted)   leet+homoglyph  reverse (target            rot13  tag_smuggle (ta  url-encoding (n
+Granite-Guardian-4.1-8B alone                 0.000            0.000            0.680            0.064            0.000            0.038            0.000            0.000            0.000            0.954
+Llama-Guard-3-8B alone                        0.000            0.000            0.217            0.705            0.000            0.256            0.000            0.000            0.000            0.806
+Llama-Guard-3-8B + L0v2                       0.000            0.000            0.952            0.968            0.786            0.965            0.782            0.695            0.941            0.733
+Vyuha v1 (as published)                       1.000            1.000            1.000            0.983            1.000            1.000            0.380            1.000            0.000            1.000
+Vyuha v2 (pre-registered)                     1.000            1.000            1.000            0.972            1.000            1.000            0.719            1.000            0.956            1.000
+  v2 without noise escalation                 1.000            1.000            1.000            0.972            1.000            1.000            0.719            1.000            0.956            1.000
+  v2 without L1                               0.000            0.000            0.960            0.972            0.885            0.980            0.588            0.490            0.967            0.753
+
+Experiment B — Best-of-N evasion rate (share of seeds with >=1 unblocked variant; lower is better):
+system                                   N=1       N=5      N=10      N=20
+Granite-Guardian-4.1-8B alone          0.853     1.000     1.000     1.000
+Llama-Guard-3-8B alone                 0.231     0.613     0.730     0.822
+Llama-Guard-3-8B + L0v2                0.300     0.666     0.793     0.876
+Vyuha v1 (as published)                0.923     1.000     1.000     1.000
+Vyuha v2 (pre-registered)              0.176     0.495     0.609     0.698
+  v2 without noise escalation          0.814     1.000     1.000     1.000
+  v2 without L1                        0.090     0.239     0.376     0.470
+
+Head-on: Vyuha v2 (pre-registered) minus Llama-Guard-3-8B alone (paired; * = 95% interval excludes 0)
+  WildJailbreak adversarial  +0.094 [+0.017,+0.168] *
+  JBB random-search          +0.135 [+0.050,+0.220] *
+  JBB JailbreakChat          +0.105 [+0.050,+0.170] *
+  StrongREJECT plain         -0.015 [-0.045,+0.010]
+  obfuscations (all 10)      +0.766 [+0.709,+0.811] *
+  obfuscations (3 never-seen) +0.731 [+0.678,+0.782] *
+  BoN evasion @N=5           -0.118 [-0.333,+0.017]
+  BoN evasion @N=20          -0.124 [-0.283,+0.017]
+  held-out FPR               +0.001 [-0.024,+0.024]
+
+Head-on: Vyuha v2 (pre-registered) minus Llama-Guard-3-8B + L0v2 (paired; * = 95% interval excludes 0)
+  WildJailbreak adversarial  +0.103 [+0.028,+0.185] *
+  JBB random-search          +0.176 [+0.070,+0.285] *
+  JBB JailbreakChat          +0.115 [+0.060,+0.180] *
+  StrongREJECT plain         -0.011 [-0.045,+0.015]
+  obfuscations (all 10)      +0.283 [+0.233,+0.332] *
+  obfuscations (3 never-seen) +0.755 [+0.693,+0.810] *
+  BoN evasion @N=5           -0.171 [-0.383,-0.033] *
+  BoN evasion @N=20          -0.178 [-0.375,-0.017] *
+  held-out FPR               +0.001 [-0.024,+0.028]
+
+Head-on: Vyuha v2 (pre-registered) minus Granite-Guardian-4.1-8B alone (paired; * = 95% interval excludes 0)
+  WildJailbreak adversarial  +0.283 [+0.203,+0.363] *
+  JBB random-search          +0.997 [+0.980,+1.000] *
+  JBB JailbreakChat          +0.141 [+0.060,+0.275] *
+  StrongREJECT plain         -0.004 [-0.045,+0.040]
+  obfuscations (all 10)      +0.791 [+0.766,+0.818] *
+  obfuscations (3 never-seen) +0.681 [+0.623,+0.737] *
+  BoN evasion @N=5           -0.505 [-0.767,-0.333] *
+  BoN evasion @N=20          -0.302 [-0.517,-0.117] *
+  held-out FPR               +0.002 [-0.031,+0.034]
+
+Head-on: Vyuha v2 (pre-registered) minus Vyuha v1 (as published) (paired; * = 95% interval excludes 0)
+  WildJailbreak adversarial  +0.151 [+0.090,+0.223] *
+  JBB random-search          +0.000 [+0.000,+0.000]
+  JBB JailbreakChat          +0.000 [+0.000,+0.000]
+  StrongREJECT plain         +0.003 [-0.030,+0.035]
+  obfuscations (all 10)      +0.128 [+0.105,+0.155] *
+  obfuscations (3 never-seen) +0.000 [+0.000,+0.000]
+  BoN evasion @N=5           -0.505 [-0.767,-0.333] *
+  BoN evasion @N=20          -0.302 [-0.517,-0.117] *
+  held-out FPR               +0.000 [-0.029,+0.025]
+
+========================================================================================================================
+PRE-REGISTERED HYPOTHESES (docs/Preregistration_v2.md), primary operating point 2% FPR
+H1 v2 - LG3 alone, CI lower > -0.05 on every pool: NOT supported
+     WildJailbreak adversarial    +0.089 [+0.032,+0.150]
+     JBB random-search            +0.356 [+0.225,+0.505]
+     JBB JailbreakChat            +0.220 [+0.100,+0.375]
+     StrongREJECT plain           -0.019 [-0.080,+0.010]
+H2 v2 - (LG3+L0v2) on all obfuscations > 0: SUPPORTED  +0.393 [+0.327,+0.468]   | never-seen only: +0.823 [+0.777,+0.873]
+H3 latency v2 <= 0.5 x LG3: SUPPORTED  (191 vs 593 ms)
+H4 BoN evasion@5 v2 <= LG3 + 0.05: SUPPORTED  (0.873 vs 0.872)
+H5 v2 - v1 > 0 on >= 2 of 3 jailbreak pools: NOT supported
+     WildJailbreak adversarial    +0.078 [+0.017,+0.143]
+     JBB random-search            +0.000 [+0.000,+0.000]
+     JBB JailbreakChat            +0.000 [+0.000,+0.000]

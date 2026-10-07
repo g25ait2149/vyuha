@@ -33,3 +33,44 @@ Source: `results/v2_analysis.txt` (from `tools/v2_analysis.py` on `results/v2_sc
 **Second caveat (not a bug).** L1 scores 1.00 on JailbreakChat (and 0.93 on random-search). JailbreakChat templates are part of the in-the-wild family L1 was trained on: exact prompts were excluded, but the templates recur. That pool is therefore **near-in-distribution for L1** and will be reported as such.
 
 **Until the re-score is done, no jailbreak comparison between Vyuha and the 8B guards (in any run) should be cited.**
+
+---
+
+## Update after the long-prompt re-score (7 Oct, evening)
+
+**How many prompts were affected** (formatted prompt > 512 tokens, so the old scorer read the verdict at the wrong place):
+
+| Run | Pool | Affected |
+|---|---|---|
+| e2e | benign (in-the-wild) | 44% for the 0.6B guard, 27% for Granite |
+| e2e | jailbreaks | 71% / 51% |
+| v2 | JBB random-search | 100% for all three guards |
+| v2 | JBB JailbreakChat | 100% for LG3 and the 0.6B guard |
+| v2 | WildJailbreak adversarial | 5–14% |
+| any run | plain-harmful, BoN | 0 |
+| ood / v2 | obfuscation | up to 16% for the 0.6B guard (long encodings such as hex), ≤ 4% for the 8B guards |
+
+Corrected files: `results/*_scores_fixed.csv`, `results/*_analysis_fixed.txt`.
+
+**Corrected results** (2% FPR; differences are paired, * = 95% CI excludes 0):
+
+| Comparison | Plain harmful | Jailbreaks | Obfuscation |
+|---|---|---|---|
+| e2e Vyuha − Granite | −0.01 | **+0.22*** (was +0.23) | **+0.49*** (was +0.56) |
+| OOD Vyuha − LG3 | ≈ unchanged | JBB PAIR/GCG −0.25* (unchanged) | ≈ unchanged |
+| v2 − LG3 alone | StrongREJECT −0.02 | JBB random-search **+0.36*** (was +1.00); JailbreakChat **+0.22*** (was +1.00); WildJailbreak **+0.09*** | — |
+
+- **Absolute levels changed even where the differences barely moved.** In e2e at 2% FPR, Granite's plain-harmful recall falls from 0.67 to 0.54, because the guards' benign scores (which set the thresholds) were themselves distorted.
+- **LG3 alone:** JailbreakChat 0.78, random-search 0.64. The guard's "0.000" on these pools was entirely the bug.
+
+**Pre-registered hypotheses on the corrected data:**
+
+| # | Outcome | Numbers |
+|---|---|---|
+| H1 | Still **not** supported, narrowly | StrongREJECT −0.019 [−0.080, +0.010] |
+| H2 | **Supported** | +0.39 all obfuscations / +0.82 never-seen |
+| H3 | **Supported** | |
+| H4 | **Supported** | |
+| H5 | **Not supported** | |
+
+**Interpretation.** Vyuha's jailbreak advantage on template-based pools comes from L1, which has seen these template *families* (near-in-distribution). It is real but smaller than first reported.

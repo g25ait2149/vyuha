@@ -82,3 +82,19 @@ That is ≈ 60 screen queries per seed per screen.
 - No end-to-end harm (that comes in the full study).
 - No GCG / white-box gradient attacks (full study).
 - No second expert (full study).
+
+## Amendment 1 (8 Oct 2026): validity bugs found in run 1; fixed before any expert outcome was produced
+
+**What was seen.** Run 1 produced only the Cell-5 screen-side files (`results/gate_pilot_cell5.zip`). No expert scores, and therefore no primary-metric value, were produced or seen. Inspecting those files showed three validity failures. These are measurement bugs, not results:
+
+| # | Failure | Cause | Fix |
+|---|---|---|---|
+| 1 | **S4 DeBERTa** scores were all NaN | DeBERTa-v3 loaded in half precision overflows | Load in float32 |
+| 2 | **S5 Llama-Guard-3-1B** gave the same score (−0.27) for every input | Its chat template only reads list-style message content, so the user text was silently dropped (verified by rendering the template) | `base_prompt` now checks the user text is present and falls back to list content; it asserts otherwise |
+| 3 | **Attack transforms compounded** (e.g. noise or leetspeak applied on top of a hex/Base64 payload, or encoding an already-encoded string), which can destroy the payload, so "evasion" would not be intent-preserving | `attack()` re-transformed its current best variant | **Every candidate is now one intent-preserving transform of the original seed.** Search = 30 + 3 × 10 candidates per seed, best by screen score. This is still score-guided best-of-N |
+
+**New safeguard.** A validity gate runs before each screen is attacked. Scores must be finite and non-constant, and the screen must reach AUROC ≥ 0.70 on seeds vs WildChat benign; otherwise the run stops.
+
+**Run 1 screen-side numbers.** S1 / S2 / S3 escalate 0.98 / 0.39 / 0.81 of original seeds at budget 0.20. That is recorded here for transparency. It is *not* used, because the transforms behind run 1's attack numbers were invalid (failure 3).
+
+**Unchanged:** systems, data, budgets, metrics, go/no-go criteria. Results go to a fresh folder (`gate_pilot_v2`).

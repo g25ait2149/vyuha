@@ -95,6 +95,11 @@ def normalize_views(text) -> list:
     base = _base_normalize(text)
     views = [base]
     views += _decode_base64_blobs(text)
+    # Unicode tag smuggling: the base view strips tag characters, which would DELETE a hidden payload
+    # (fail-open). Decode them to ASCII as their own view so the guard sees what the model may read.
+    tags = "".join(chr(ord(ch) - 0xE0000) for ch in text if 0xE0020 <= ord(ch) <= 0xE007E)
+    if tags.strip():
+        views.append("[tags] " + tags)
     # ROT13 hint (cheap, only when an explicit cue is present).
     if re.search(r"rot[\s-]?13", base, re.I):
         try:

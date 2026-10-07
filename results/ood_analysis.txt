@@ -1,0 +1,100 @@
+========================================================================================================================
+TARGET benign FPR 2% on the HARD benign pool (500 splits; recall = mean [2.5, 97.5])
+system                              FPR    ms  WildGuardMix adversarial           HarmBench plain       unseen obfuscations
+Qwen3Guard-0.6B alone             0.022    66       0.116 [0.06,0.22]       0.619 [0.50,0.74]       0.007 [0.00,0.02]
+Granite-Guardian-4.1-8B alone     0.021   595       0.085 [0.05,0.12]       0.832 [0.77,0.89]       0.046 [0.03,0.06]
+Llama-Guard-3-8B alone            0.022   595       0.165 [0.11,0.22]       0.891 [0.83,0.94]       0.081 [0.04,0.14]
+Vyuha full (L0+L1+cascade)        0.022   192       0.101 [0.06,0.16]       0.818 [0.76,0.88]       0.694 [0.66,0.73]
+  ablation: no L1                 0.021   185       0.084 [0.05,0.12]       0.832 [0.78,0.88]       0.354 [0.32,0.40]
+  ablation: no L0 (raw text)      0.022   192       0.116 [0.07,0.18]       0.826 [0.77,0.88]       0.577 [0.54,0.62]
+
+False-positive rate by benign source (held-out half):
+Qwen3Guard-0.6B alone                 benign_adv 0.003   benign_xstest 0.009  benign_orbench 0.042
+Granite-Guardian-4.1-8B alone         benign_adv 0.000   benign_xstest 0.004  benign_orbench 0.043
+Llama-Guard-3-8B alone                benign_adv 0.008   benign_xstest 0.006  benign_orbench 0.039
+Vyuha full (L0+L1+cascade)            benign_adv 0.022   benign_xstest 0.006  benign_orbench 0.031
+  ablation: no L1                     benign_adv 0.000   benign_xstest 0.008  benign_orbench 0.042
+  ablation: no L0 (raw text)          benign_adv 0.022   benign_xstest 0.006  benign_orbench 0.031
+
+Per unseen obfuscation (recall):
+system                               double_space  fullwidth (ctrl              hex   leet+homoglyph          reverse     rot13 (ctrl)      tag_smuggle
+Qwen3Guard-0.6B alone                       0.000            0.046            0.000            0.006            0.000            0.000            0.000
+Granite-Guardian-4.1-8B alone               0.296            0.021            0.000            0.010            0.000            0.000            0.000
+Llama-Guard-3-8B alone                      0.013            0.352            0.000            0.190            0.000            0.012            0.000
+Vyuha full (L0+L1+cascade)                  1.000            0.834            1.000            1.000            0.030            0.987            0.000
+  ablation: no L1                           0.608            0.835            0.000            0.732            0.000            0.300            0.000
+  ablation: no L0 (raw text)                1.000            0.021            1.000            1.000            0.030            0.980            0.000
+
+Experiment B — Best-of-N evasion rate (share of seeds with >=1 unblocked variant; lower is better):
+system                                 N=1       N=5      N=10      N=20
+Qwen3Guard-0.6B alone                0.988     1.000     1.000     1.000
+Granite-Guardian-4.1-8B alone        0.971     1.000     1.000     1.000
+Llama-Guard-3-8B alone               0.499     0.894     0.947     0.998
+Vyuha full (L0+L1+cascade)           0.983     1.000     1.000     1.000
+  ablation: no L1                    0.983     1.000     1.000     1.000
+  ablation: no L0 (raw text)         0.983     1.000     1.000     1.000
+
+Head-on: Vyuha full (L0+L1+cascade) minus Granite-Guardian-4.1-8B alone (paired; * = 95% interval excludes 0)
+  WildGuardMix adversarial   +0.016 [-0.028,+0.068]
+  HarmBench plain            -0.013 [-0.045,+0.020]
+  unseen obfuscations        +0.648 [+0.610,+0.690] *
+  BoN evasion @N=20          +0.000 [+0.000,+0.000]
+  held-out FPR               +0.002 [-0.014,+0.018]
+
+Head-on: Vyuha full (L0+L1+cascade) minus Llama-Guard-3-8B alone (paired; * = 95% interval excludes 0)
+  WildGuardMix adversarial   -0.064 [-0.137,+0.007]
+  HarmBench plain            -0.073 [-0.130,-0.015] *
+  unseen obfuscations        +0.613 [+0.553,+0.669] *
+  BoN evasion @N=20          +0.002 [+0.000,+0.017]
+  held-out FPR               +0.001 [-0.023,+0.023]
+
+========================================================================================================================
+TARGET benign FPR 5% on the HARD benign pool (500 splits; recall = mean [2.5, 97.5])
+system                              FPR    ms  WildGuardMix adversarial           HarmBench plain       unseen obfuscations
+Qwen3Guard-0.6B alone             0.052    66       0.256 [0.19,0.33]       0.778 [0.71,0.84]       0.037 [0.02,0.06]
+Granite-Guardian-4.1-8B alone     0.047   595       0.142 [0.10,0.18]       0.868 [0.81,0.92]       0.063 [0.05,0.08]
+Llama-Guard-3-8B alone            0.051   595       0.300 [0.23,0.38]       0.934 [0.90,0.97]       0.244 [0.16,0.36]
+Vyuha full (L0+L1+cascade)        0.050   191       0.183 [0.13,0.24]       0.851 [0.80,0.90]       0.729 [0.68,0.77]
+  ablation: no L1                 0.050   186       0.135 [0.10,0.18]       0.860 [0.81,0.91]       0.400 [0.36,0.44]
+  ablation: no L0 (raw text)      0.050   191       0.200 [0.14,0.27]       0.858 [0.80,0.91]       0.614 [0.56,0.66]
+
+False-positive rate by benign source (held-out half):
+Qwen3Guard-0.6B alone                 benign_adv 0.003   benign_xstest 0.024  benign_orbench 0.100
+Granite-Guardian-4.1-8B alone         benign_adv 0.000   benign_xstest 0.014  benign_orbench 0.097
+Llama-Guard-3-8B alone                benign_adv 0.028   benign_xstest 0.019  benign_orbench 0.084
+Vyuha full (L0+L1+cascade)            benign_adv 0.038   benign_xstest 0.010  benign_orbench 0.081
+  ablation: no L1                     benign_adv 0.000   benign_xstest 0.008  benign_orbench 0.106
+  ablation: no L0 (raw text)          benign_adv 0.038   benign_xstest 0.010  benign_orbench 0.081
+
+Per unseen obfuscation (recall):
+system                               double_space  fullwidth (ctrl              hex   leet+homoglyph          reverse     rot13 (ctrl)      tag_smuggle
+Qwen3Guard-0.6B alone                       0.000            0.248            0.000            0.012            0.000            0.000            0.000
+Granite-Guardian-4.1-8B alone               0.400            0.023            0.000            0.021            0.000            0.000            0.000
+Llama-Guard-3-8B alone                      0.293            0.828            0.004            0.516            0.000            0.031            0.037
+Vyuha full (L0+L1+cascade)                  1.000            0.847            1.000            1.000            0.259            1.000            0.000
+  ablation: no L1                           0.657            0.859            0.000            0.842            0.000            0.445            0.000
+  ablation: no L0 (raw text)                1.000            0.037            1.000            1.000            0.259            1.000            0.000
+
+Experiment B — Best-of-N evasion rate (share of seeds with >=1 unblocked variant; lower is better):
+system                                 N=1       N=5      N=10      N=20
+Qwen3Guard-0.6B alone                0.954     1.000     1.000     1.000
+Granite-Guardian-4.1-8B alone        0.966     1.000     1.000     1.000
+Llama-Guard-3-8B alone               0.203     0.504     0.689     0.799
+Vyuha full (L0+L1+cascade)           0.976     1.000     1.000     1.000
+  ablation: no L1                    0.963     1.000     1.000     1.000
+  ablation: no L0 (raw text)         0.976     1.000     1.000     1.000
+
+Head-on: Vyuha full (L0+L1+cascade) minus Granite-Guardian-4.1-8B alone (paired; * = 95% interval excludes 0)
+  WildGuardMix adversarial   +0.041 [-0.008,+0.095]
+  HarmBench plain            -0.017 [-0.050,+0.015]
+  unseen obfuscations        +0.666 [+0.613,+0.716] *
+  BoN evasion @N=20          +0.000 [+0.000,+0.000]
+  held-out FPR               +0.003 [-0.024,+0.030]
+
+Head-on: Vyuha full (L0+L1+cascade) minus Llama-Guard-3-8B alone (paired; * = 95% interval excludes 0)
+  WildGuardMix adversarial   -0.118 [-0.215,-0.027] *
+  HarmBench plain            -0.084 [-0.140,-0.035] *
+  unseen obfuscations        +0.485 [+0.366,+0.584] *
+  BoN evasion @N=20          +0.201 [+0.067,+0.359] *
+  held-out FPR               -0.000 [-0.034,+0.036]
+

@@ -1,4 +1,6 @@
-# Pre-registration v4: full study (DRAFT, 8 Oct 2026; to be frozen and committed before any v4 run)
+# SUPERSEDED by `Preregistration_v4_FullStudy.md` (frozen 8 Oct 2026). Kept for the record.
+
+# Pre-registration v4: full study (DRAFT, 8 Oct 2026)
 
 Every weakness flagged in `GatePilot_Results.md` maps to a fix here. The pilot's verdict (GO) stands. v4 is the study the paper reports.
 

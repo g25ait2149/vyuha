@@ -59,14 +59,25 @@ def load_v6(load_dataset, log=print, n_itw=400):
     import random as _r
     adv = [p for p in load_dataset('walledai/AdvBench', split='train')['prompt'] if isinstance(p, str)]
     mal = [p for p in load_dataset('walledai/MaliciousInstruct', split='train')['prompt'] if isinstance(p, str)]
-    # WildJailbreak eval split: adversarial-harmful (complex real attacks) + adversarial-benign (hard FPR set)
-    wjb = load_dataset('allenai/wildjailbreak', 'eval', split='train', delimiter='\t').to_pandas()
-    pcol = 'adversarial' if 'adversarial' in wjb.columns else [c for c in wjb.columns if 'adv' in c.lower()][0]
-    lcol = [c for c in wjb.columns if 'type' in c.lower() or 'label' in c.lower()][0]
-    wjb_adv_harm = [p for p in wjb[wjb[lcol].astype(str).str.contains('harm', case=False)][pcol].tolist()
-                    if isinstance(p, str) and p.strip()]
-    wjb_adv_benign = [p for p in wjb[wjb[lcol].astype(str).str.contains('benign', case=False)][pcol].tolist()
-                      if isinstance(p, str) and p.strip()]
+    # WildJailbreak eval split: adversarial-harmful (complex real attacks) + adversarial-benign (hard FPR set).
+    # Ships as a TSV; the dataset's default config parses it as comma-CSV (one mangled column), so download the
+    # raw file and parse with sep='\t' explicitly.
+    import pandas as pd
+    from huggingface_hub import hf_hub_download
+    fp = hf_hub_download('allenai/wildjailbreak', 'eval/eval.tsv', repo_type='dataset')
+    wjb = pd.read_csv(fp, sep='\t', keep_default_na=False, dtype=str)
+    log('  WildJailbreak eval columns: %s (%d rows)' % (list(wjb.columns), len(wjb)))
+    pcol = 'adversarial' if 'adversarial' in wjb.columns else next(c for c in wjb.columns if 'adv' in c.lower())
+    lcol = next((c for c in wjb.columns if 'type' in c.lower() or 'label' in c.lower()), None)
+    if lcol is None:                                   # no label column -> treat all eval adversarials as harmful
+        wjb_adv_harm = [p for p in wjb[pcol].tolist() if isinstance(p, str) and p.strip()]
+        wjb_adv_benign = []
+    else:
+        lv = wjb[lcol].astype(str)
+        wjb_adv_harm = [p for p in wjb[lv.str.contains('harm', case=False)][pcol].tolist()
+                        if isinstance(p, str) and p.strip()]
+        wjb_adv_benign = [p for p in wjb[lv.str.contains('benign', case=False)][pcol].tolist()
+                          if isinstance(p, str) and p.strip()]
     # in-the-wild jailbreak templates x AdvBench behaviours (real DAN-style wrappers)
     itw = load_dataset('TrustAIRLab/in-the-wild-jailbreak-prompts', 'jailbreak_2023_12_25',
                        split='train')['prompt']

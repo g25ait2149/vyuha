@@ -252,26 +252,43 @@ flat = [t for row in POOL for t in row]
 V = lambda xs: [normalize(t, full=True, version=2) for t in xs]
 probes = [t for t in EVAL+WC_CALIB if len(t)<300][:5]
 OUTF = f'{OUT}/v4_B_experts.npz'; store = dict(np.load(OUTF)) if os.path.exists(OUTF) else {}
-def put(k,v): store[k]=np.asarray(v); np.savez(OUTF, **store)
+import time
+def save(): np.savez(OUTF, **store)
+
+def score_key(tok, m, kind, pre, key, texts, shard=2000):
+    """Resumable + checkpointed: score `texts` in shards, saving each shard to the npz so a timeout/restart
+    continues from the last finished shard instead of redoing the whole key. Prints per-shard timing."""
+    if key in store: print(f'  [resume] {key} ({len(store[key])})', flush=True); return store[key]
+    parts = []
+    for i in range(0, len(texts), shard):
+        sk = f'{key}__s{i}'
+        if sk in store: parts.append(store[sk]); continue
+        t0 = time.time()
+        arr = bucketed_scores(tok, m, texts[i:i+shard], kind, pre)
+        store[sk] = arr; save(); parts.append(arr)
+        print(f'  {key} {min(i+shard,len(texts))}/{len(texts)}  ({time.time()-t0:.0f}s/shard)', flush=True)
+    full = np.concatenate(parts) if parts else np.zeros(0)
+    store[key] = full
+    for i in range(0, len(texts), shard): store.pop(f'{key}__s{i}', None)
+    save(); return full
 
 def score_expert(mid, kind, tag, device):
-    if f'{tag}/l0/pool' in store: print('[resume]', tag); return
+    final = f'{tag}/raw/pool' if tag == 'E_LG' else f'{tag}/l0/pool'   # last key each expert produces
+    if final in store: print('[resume] whole', tag, 'already done', flush=True); return
     tok, m = load_model(mid, True, device=device)
-    import io, contextlib, time
+    import io, contextlib
     with contextlib.redirect_stdout(io.StringIO()): pre = forced_prefix(tok, m, kind, probes)
-    t0 = [time.time()]
-    def prog(k, n):                                  # newline-terminated every ~2000 items (Kaggle logs by line)
-        if k % 2000 < 8 or k >= n:
-            print(f'  {tag} {k}/{n}  ({time.time()-t0[0]:.0f}s)', flush=True)
-    for view, texts in [('l0', None), ('raw', None)]:
-        def enc_view(xs): return V(xs) if view=='l0' else list(xs)
-        put(f'{tag}/{view}/ben_wc_calib', bucketed_scores(tok,m, enc_view(WC_CALIB), kind, pre, progress=prog))
-        put(f'{tag}/{view}/ben_wc_test',  bucketed_scores(tok,m, enc_view(WC_TEST),  kind, pre, progress=prog))
-        put(f'{tag}/{view}/ben_hard',     bucketed_scores(tok,m, enc_view(HARD),     kind, pre, progress=prog))
-        put(f'{tag}/{view}/orig',         bucketed_scores(tok,m, enc_view(EVAL),     kind, pre, progress=prog))
-        put(f'{tag}/{view}/pool',         bucketed_scores(tok,m, enc_view(flat),     kind, pre, progress=prog).reshape(NS,NC))
-        if tag=='E_GR': break      # Granite: L0 view only (secondary); raw view is E_LG only (prereg S1.3)
-    m=tok=None; import gc; gc.collect(); torch.cuda.empty_cache(); print('  done', tag, flush=True)
+    print(f'{tag}: model loaded, scoring...', flush=True)
+    for view in ['l0', 'raw']:
+        ev = (lambda xs: V(xs)) if view == 'l0' else (lambda xs: list(xs))
+        score_key(tok, m, kind, pre, f'{tag}/{view}/ben_wc_calib', ev(WC_CALIB))
+        score_key(tok, m, kind, pre, f'{tag}/{view}/ben_wc_test',  ev(WC_TEST))
+        score_key(tok, m, kind, pre, f'{tag}/{view}/ben_hard',     ev(HARD))
+        score_key(tok, m, kind, pre, f'{tag}/{view}/orig',         ev(EVAL))
+        pool = score_key(tok, m, kind, pre, f'{tag}/{view}/pool',  ev(flat))
+        store[f'{tag}/{view}/pool'] = pool.reshape(NS, NC); save()
+        if tag == 'E_GR': break    # Granite: L0 view only (secondary); raw view is E_LG only
+    m = tok = None; import gc; gc.collect(); torch.cuda.empty_cache(); print('  done', tag, flush=True)
 
 # E_LG on GPU0, E_GR on GPU1 (sequential here; set device per the prereg - both fit a single T4 at 4-bit if only one GPU)
 ndev = torch.cuda.device_count()

@@ -10,6 +10,8 @@
 
 ## 2. Results
 
+> **Superseded by `docs/Theorems_v4.md` (rigorous, verified by `tools/verify_theory.py`).** The statements below are kept for history but contain an error: Theorem 1's tight, *attained* constant is **β_A** (the expert's recall at the attacker's chosen variant), **not β̄** (max recall). The uniform floor attains b·β_A, not b·β̄. Use the v4 document for any citation.
+
 **Theorem 1 (budget ceiling).**
 Against a full-control attacker, any policy's worst-case block probability is at most
 

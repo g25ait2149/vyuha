@@ -151,6 +151,11 @@ def analyse(D, expert='E_LG', view='l0'):
                   f'{"benefit" if benefit else "no-benefit"} | feasible={feasible} FPR_ok={fpr_ok}')
         print(f'  H3 VERDICT: benefit on {nben}/{nscreens} (need >=3), cost-ok on {ncost}/{nscreens} '
               f'-> {"PASS" if nben >= 3 and ncost == nscreens else "FAIL/partial"}')
+        # pooled H3 (across screens): far more power when the per-screen trigger-aware benefit is small
+        pooled = np.concatenate([d['pnee'][0] - d['pe05'][0] for d in h3.values() if 'pe05' in d and 'pnee' in d])
+        pm, plo, phi = P.boot_ci(pooled)
+        print(f'  H3 POOLED (all screens, n={len(pooled)}): mean benefit {pm:+.3f} [{plo:+.2f},{phi:+.2f}] '
+              f'{"CI>0" if plo > 0 else "CI includes 0"}  (power backstop for small effects)')
     cheap = [loss.get(s, 0) >= 0.25 for s in SCREENS[:4]]
     if loss:
         verdict = ('H1 GO (strong)' if sum(cheap) >= 3 and loss.get('S5_lg3_1b', 0) >= 0.10

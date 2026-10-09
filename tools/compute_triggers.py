@@ -36,6 +36,8 @@ def main(out_dir, n_eval=300):
 
     bcn, bce = ben(D['wc_calib'])
     btn, bte = ben(D['wc_test'])
+    import os
+    os.makedirs(out_dir, exist_ok=True)
     path = f'{out_dir.rstrip("/")}/v4_triggers.npz'
     np.savez(path, pool_noise=noise, pool_enc=enc,
              ben_wc_calib_noise=bcn, ben_wc_calib_enc=bce,

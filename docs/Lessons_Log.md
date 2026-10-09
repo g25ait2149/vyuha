@@ -1,0 +1,19 @@
+# Lessons Log — running record of mistakes, fixes, and standing rules
+
+Living document. Append a dated entry every time something breaks and is fixed: **symptom → root cause → standing rule**. This feeds the `research-to-publication` skill, which is FINALIZED (consolidated) only when a paper is actually published. Do not treat the skill as final until then.
+
+| # | Date | Symptom | Root cause | Standing rule |
+|---|---|---|---|---|
+| L1 | 2026-10-09 | Theorem 1 claimed the optimal policy attains a bound using the **max** of a varying quantity | Accepted a one-line proof sketch; the tight, attained constant uses recall at the adversary's *chosen* point, not the max | Never trust a sketched constant; construct the "what if it varies?" instance + numerical check before claiming |
+| L2 | 2026-10-09 | A pre-registered "bound" could never fail | It was an algebraic identity of the policy | Test every criterion for triviality; if it can't fail it isn't a test — use a scaling/tightness check |
+| L3 | 2026-10-09 | Encoding trigger fired on ~12% of benign traffic (all code) | Rule detected "anything non-English", not the encoded-blob signature | Detectors target the signature; validate benign false-fire on real traffic; new conditions enter held-out only; heed impossibility results |
+| L4 | 2026-10-10 | Headline "loss" ≈ 0 looked like "system is safe" | The strong backstop model was itself defeated, so there was nothing to lose | When a safety/loss metric ≈ 0, check the backstop works on clean inputs first; separate confounded regimes |
+| L5 | 2026-10-10 | A clean result appeared only after a data split chosen post-hoc | Post-hoc subgroup | Label exploratory, confirm on held-out split, pre-register the split as primary next round |
+| L6 | 2026-10-09 | A working multi-hour GPU job looked frozen/blank; triggered a wasted restart | `\r`-terminated progress prints are buffered by line-based log viewers | Newline-terminated, flushed progress; checkpoint so a restart is cheap |
+| L7 | 2026-10-09 | A long job saved nothing until the end; a stall lost hours | No mid-run checkpointing | Shard + checkpoint every stage; resume, don't restart |
+| L8 | 2026-10-10 | After `git pull`, a re-run reproduced the bug identically | Stale imported Python module in the running kernel | Restart the kernel after pulling code; for fragile logic use fresh-clone + inlined self-contained notebook |
+| L9 | 2026-10-10 | A dataset loaded 0 rows for a split, no error; hours lost blaming cache/pull | Loader auto-detected the label column by name, matched a numeric `label` (1/0) before the real `data_type`, searched it for "harm" → 0 | Inspect real file structure first (force fresh download; print columns/values/sample); reference columns explicitly; assert counts > 0; when 0, look at the data not the infra |
+| L10 | 2026-10-10 | About to claim a finding as a discovery | The *observation* was already published; only the adversarial+formal version was novel | Deep-review every finding; claim the delta, credit the origin |
+
+## How to add an entry
+When something breaks and is fixed this session, append one row above with the next L-number and today's date. If the lesson changes the *approach* (not just a one-off), also update the `research-to-publication` skill via `save_skill … overwrite`. At paper publication, consolidate this log into the skill's final Lessons section.

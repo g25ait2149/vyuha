@@ -51,19 +51,28 @@ def decode_view_fires(text, vocab):
     return False
 
 
-def gibberish_fires(text, vocab, win=8, min_chars=40, max_ratio=0.3):
-    toks = str(text).split()
-    for t in toks:
-        if len(t) >= min_chars and not any(ch in t for ch in '/\\.'):
+BLOB_RE = re.compile(r"[A-Za-z0-9+/=]{40,}")        # base64 / base85-alnum / hex run, no code punctuation
+
+
+def gibberish_fires(text, vocab=None, min_chars=40):
+    """Fire on an ENCODED BLOB, not merely on non-English text (reformulated 2026-10-09; the old 'low
+    dictionary-ratio window' rule fired on code and non-English prose - 11.7% of benign WildChat).
+
+    (b1) a contiguous base64/hex-like run >= 40 chars that mixes case or carries >=4 digits or is >= 60 chars
+         (real ciphertext of a non-trivial payload; a plain long word or snake_case identifier does not match);
+    (b2) the whole text (>= 30 non-space chars) dominated by a tiny cipher alphabet: Morse ({.-}) or binary ({01}).
+    Code is excluded because it contains (){}[]<>;:= etc. and rarely forms a 40-char pure-alnum run."""
+    s = str(text)
+    for m in BLOB_RE.findall(s):
+        has_digit = sum(c.isdigit() for c in m) >= 4
+        mixed = any(c.islower() for c in m) and any(c.isupper() for c in m)
+        if has_digit or mixed or len(m) >= 60:
             return True
-    if len(toks) < win:
-        span = ' '.join(toks)
-        if len(span) >= min_chars and toks:
-            return sum(_wordlike(t, vocab) for t in toks) / len(toks) < max_ratio
-        return False
-    ok = [_wordlike(t, vocab) for t in toks]
-    for i in range(len(toks) - win + 1):
-        if len(' '.join(toks[i:i + win])) >= min_chars and sum(ok[i:i + win]) / win < max_ratio:
+    nz = [c for c in s if not c.isspace()]
+    if len(nz) >= 30:
+        morse = sum(c in '.-' for c in nz) / len(nz)
+        binr = sum(c in '01' for c in nz) / len(nz)
+        if morse >= 0.9 or binr >= 0.9:
             return True
     return False
 

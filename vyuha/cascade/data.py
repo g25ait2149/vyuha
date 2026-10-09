@@ -68,16 +68,17 @@ def load_v6(load_dataset, log=print, n_itw=400):
     wjb = pd.read_csv(fp, sep='\t', keep_default_na=False, dtype=str)
     log('  WildJailbreak eval columns: %s (%d rows)' % (list(wjb.columns), len(wjb)))
     pcol = 'adversarial' if 'adversarial' in wjb.columns else next(c for c in wjb.columns if 'adv' in c.lower())
-    lcol = next((c for c in wjb.columns if 'type' in c.lower() or 'label' in c.lower()), None)
-    if lcol is None:                                   # no label column -> treat all eval adversarials as harmful
-        wjb_adv_harm = [p for p in wjb[pcol].tolist() if isinstance(p, str) and p.strip()]
-        wjb_adv_benign = []
+    _pick = lambda sub: [p for p in sub if isinstance(p, str) and p.strip()]
+    if 'data_type' in wjb.columns:                     # values like adversarial_harmful / adversarial_benign
+        lv = wjb['data_type'].astype(str)
+        wjb_adv_harm = _pick(wjb[lv.str.contains('harm', case=False)][pcol].tolist())
+        wjb_adv_benign = _pick(wjb[lv.str.contains('benign', case=False)][pcol].tolist())
+    elif 'label' in wjb.columns:                       # numeric label: 1 = harmful, 0 = benign
+        lv = wjb['label'].astype(str).str.strip()
+        wjb_adv_harm = _pick(wjb[lv == '1'][pcol].tolist())
+        wjb_adv_benign = _pick(wjb[lv == '0'][pcol].tolist())
     else:
-        lv = wjb[lcol].astype(str)
-        wjb_adv_harm = [p for p in wjb[lv.str.contains('harm', case=False)][pcol].tolist()
-                        if isinstance(p, str) and p.strip()]
-        wjb_adv_benign = [p for p in wjb[lv.str.contains('benign', case=False)][pcol].tolist()
-                          if isinstance(p, str) and p.strip()]
+        wjb_adv_harm = _pick(wjb[pcol].tolist()); wjb_adv_benign = []
     # in-the-wild jailbreak templates x AdvBench behaviours (real DAN-style wrappers)
     itw = load_dataset('TrustAIRLab/in-the-wild-jailbreak-prompts', 'jailbreak_2023_12_25',
                        split='train')['prompt']

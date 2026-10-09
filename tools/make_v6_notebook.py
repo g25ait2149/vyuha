@@ -75,6 +75,8 @@ for s in SCREENS:
     score, free = make_screen(s, WGM, WLAB, V, samp)
     for k in KEYS:
         if f'{s}/{k}' in store: continue
+        if not D6[k]:
+            put(f'{s}/{k}', np.zeros(0)); print(f'  {s}/{k} EMPTY-skip', flush=True); continue
         put(f'{s}/{k}', score(D6[k])); print(f'  {s}/{k} {len(D6[k])}', flush=True)
     free(); gc.collect(); torch.cuda.empty_cache()
 
@@ -85,6 +87,8 @@ if f'E/{KEYS[-1]}' not in store:
     with contextlib.redirect_stdout(io.StringIO()): pre = forced_prefix(tok, m, 'llamaguard', probes)
     for k in KEYS:
         if f'E/{k}' in store: continue
+        if not D6[k]:
+            put(f'E/{k}', np.zeros(0)); print(f'  E/{k} EMPTY-skip', flush=True); continue
         put(f'E/{k}', bucketed_scores(tok, m, V(D6[k]), 'llamaguard', pre,
             progress=lambda i,n,k=k: (i%2000<8 or i>=n) and print(f'  E/{k} {i}/{n}', flush=True)))
     m=tok=None; gc.collect(); torch.cuda.empty_cache()

@@ -49,6 +49,8 @@ def main(path):
         print(f'\n=== {s}  tau={tau:.2f}  realized FPR={fpr:.3f}')
         for arm in PLAIN + REAL:
             sp = D[f'{s}/{arm}']; ep = D[f'E/{arm}']
+            if len(sp) == 0 or len(ep) == 0:
+                print(f'  {"REAL" if arm in REAL else "plain":5s} {arm:20s} EMPTY (source returned 0)'); continue
             catch = ep > t
             notesc = (sp <= tau) & catch
             bA = catch.mean()
@@ -67,7 +69,7 @@ def main(path):
     for s in PRIMARY:
         best = False
         for arm in REAL:
-            if f'{s}/{arm}' not in D:
+            if f'{s}/{arm}' not in D or len(D[f'{s}/{arm}']) == 0:
                 continue
             sp = D[f'{s}/{arm}']; ep = D[f'E/{arm}']; catch = ep > t
             s_ben = benign(s); tau = np.quantile(s_ben, 1 - BUD[s])

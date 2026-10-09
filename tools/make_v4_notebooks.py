@@ -272,14 +272,14 @@ def score_key(tok, m, kind, pre, key, texts, shard=2000):
     for i in range(0, len(texts), shard): store.pop(f'{key}__s{i}', None)
     save(); return full
 
-def score_expert(mid, kind, tag, device):
-    final = f'{tag}/raw/pool' if tag == 'E_LG' else f'{tag}/l0/pool'   # last key each expert produces
-    if final in store: print('[resume] whole', tag, 'already done', flush=True); return
+def score_expert(mid, kind, tag, device, views=('l0',)):
+    final = f'{tag}/{views[-1]}/pool'
+    if final in store: print('[resume] whole', tag, views, 'already done', flush=True); return
     tok, m = load_model(mid, True, device=device)
     import io, contextlib
     with contextlib.redirect_stdout(io.StringIO()): pre = forced_prefix(tok, m, kind, probes)
-    print(f'{tag}: model loaded, scoring...', flush=True)
-    for view in ['l0', 'raw']:
+    print(f'{tag}: model loaded, scoring views {views}...', flush=True)
+    for view in views:
         ev = (lambda xs: V(xs)) if view == 'l0' else (lambda xs: list(xs))
         score_key(tok, m, kind, pre, f'{tag}/{view}/ben_wc_calib', ev(WC_CALIB))
         score_key(tok, m, kind, pre, f'{tag}/{view}/ben_wc_test',  ev(WC_TEST))
@@ -287,14 +287,18 @@ def score_expert(mid, kind, tag, device):
         score_key(tok, m, kind, pre, f'{tag}/{view}/orig',         ev(EVAL))
         pool = score_key(tok, m, kind, pre, f'{tag}/{view}/pool',  ev(flat))
         store[f'{tag}/{view}/pool'] = pool.reshape(NS, NC); save()
-        if tag == 'E_GR': break    # Granite: L0 view only (secondary); raw view is E_LG only
     m = tok = None; import gc; gc.collect(); torch.cuda.empty_cache(); print('  done', tag, flush=True)
 
-# E_LG on GPU0, E_GR on GPU1 (sequential here; set device per the prereg - both fit a single T4 at 4-bit if only one GPU)
-ndev = torch.cuda.device_count()
-score_expert('meta-llama/Llama-Guard-3-8B', 'llamaguard', 'E_LG', 0)
-score_expert('ibm-granite/granite-guardian-4.1-8b', 'granite41', 'E_GR', 1 if ndev>1 else 0)
-print('experts scored:', sorted({k.split("/")[0] for k in store}))'''
+# MAIN RUN = L0 view only for both experts -> full headline (H1, H3, H4, H6). Resumable across sessions via the
+# shard checkpoints, so a timeout just continues next run. E_LG raw view is a separate optional follow-up below.
+score_expert('meta-llama/Llama-Guard-3-8B',          'llamaguard', 'E_LG', 0, views=('l0',))
+score_expert('ibm-granite/granite-guardian-4.1-8b',  'granite41',  'E_GR', 0, views=('l0',))
+print('experts scored (L0):', sorted({k.split("/")[0] for k in store if "/l0/" in k}))'''
+
+RAW_VIEW = '''# Cell 3 (OPTIONAL, run only after the L0 main run is done) - E_LG raw-text view, for the expert-vs-L0 separation
+# (secondary robustness check, prereg R3). Same checkpointing; safe to run in its own session.
+score_expert('meta-llama/Llama-Guard-3-8B', 'llamaguard', 'E_LG', 0, views=('raw',))
+print('E_LG raw view done:', 'E_LG/raw/pool' in store)'''
 
 # ---------------- Notebook C: GCG ----------------
 GCG_NB = '''# Cell 2 - GCG (A3) on the open-weight LM guards S1, S5 (per-seed, 100 eval seeds). Resumable.
@@ -404,10 +408,12 @@ def build():
                'Run B, C, D next, then the merge cell.'),
             SETUP, PREFLIGHT, DATA, POOL, SCREENS, SCORE_SCREENS, MERGE]),
         'cascade_v4_B_experts.ipynb': nb([
-            md('# v4 Notebook B - experts (Llama-Guard-3-8B, Granite-Guardian-4.1-8B), two views\n'
-               'Run AFTER A (needs `v4_data.json`, `v4_pool.json` in OUT; upload A\'s output or run in the same '
-               'persistent dir). T4 x2 if available. Output: `v4_B_experts.npz`.'),
-            SETUP, EXPERTS]),
+            md('# v4 Notebook B - experts (Llama-Guard-3-8B, Granite-Guardian-4.1-8B)\n'
+               'Self-provisions data (no wiring to A). **Main run = L0 view only for both experts** -> full '
+               'headline (H1/H3/H4/H6). Per-shard progress in the Logs tab; **shard-checkpointed and resumable** '
+               '- if a session times out, just re-run (commit) and it continues. Output: `v4_B_experts.npz`. '
+               'Cell 3 (raw view) is OPTIONAL, run it in a later session only after the L0 run finishes.'),
+            SETUP, EXPERTS, RAW_VIEW]),
         'cascade_v4_C_gcg.ipynb': nb([
             md('# v4 Notebook C - GCG (A3) on S1 & S5, then re-score through L0\n'
                'Run AFTER A. ~4 h on a T4; resumable. Output: `v4_C_gcg.npz`. '

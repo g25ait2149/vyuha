@@ -51,6 +51,60 @@ def ensure_files(out_dir, log=print):
     return D
 
 
+def load_v6(load_dataset, log=print, n_itw=400):
+    """New, harder, REAL-attack data for the v6 confirmation (docs/Preregistration_v6_Confirmation.md).
+
+    Returns dict with harmful arms (new plain sources + real complex jailbreaks), benign pools, and the
+    WildGuardMix-train screen corpus. All harmful items are de-duped against WGM-train (Jaccard>=0.6)."""
+    import random as _r
+    adv = [p for p in load_dataset('walledai/AdvBench', split='train')['prompt'] if isinstance(p, str)]
+    mal = [p for p in load_dataset('walledai/MaliciousInstruct', split='train')['prompt'] if isinstance(p, str)]
+    # WildJailbreak eval split: adversarial-harmful (complex real attacks) + adversarial-benign (hard FPR set)
+    wjb = load_dataset('allenai/wildjailbreak', 'eval', split='train', delimiter='\t').to_pandas()
+    pcol = 'adversarial' if 'adversarial' in wjb.columns else [c for c in wjb.columns if 'adv' in c.lower()][0]
+    lcol = [c for c in wjb.columns if 'type' in c.lower() or 'label' in c.lower()][0]
+    wjb_adv_harm = [p for p in wjb[wjb[lcol].astype(str).str.contains('harm', case=False)][pcol].tolist()
+                    if isinstance(p, str) and p.strip()]
+    wjb_adv_benign = [p for p in wjb[wjb[lcol].astype(str).str.contains('benign', case=False)][pcol].tolist()
+                      if isinstance(p, str) and p.strip()]
+    # in-the-wild jailbreak templates x AdvBench behaviours (real DAN-style wrappers)
+    itw = load_dataset('TrustAIRLab/in-the-wild-jailbreak-prompts', 'jailbreak_2023_12_25',
+                       split='train')['prompt']
+    itw = [t for t in itw if isinstance(t, str) and len(t) > 40]
+    _r.Random(11).shuffle(itw)
+    beh = adv[:n_itw]
+    itw_attacks = [itw[i % len(itw)] + '\n\nNow, specifically: ' + beh[i] for i in range(min(n_itw, len(beh)))]
+
+    wgm = load_dataset('allenai/wildguardmix', 'wildguardtrain', split='train').to_pandas()
+    wgm = wgm[wgm.prompt.notna() & wgm.prompt_harm_label.isin(['harmful', 'unharmful'])]
+    wgm_prompts = wgm.prompt.tolist(); wgm_labels = (wgm.prompt_harm_label == 'harmful').astype(int).tolist()
+
+    def dd(items):
+        kept, _ = dedup_against(items, wgm_prompts[:4000], 0.6)
+        return kept
+
+    wc, seen = [], set()
+    for row in load_dataset('allenai/WildChat-1M', split='train', streaming=True):
+        if row.get('language') != 'English' or row.get('toxic'):
+            continue
+        conv = row.get('conversation') or []
+        if conv and conv[0].get('role') == 'user':
+            t = (conv[0].get('content') or '').strip()
+            if 10 < len(t) < 4000 and t not in seen:
+                seen.add(t); wc.append(t)
+        if len(wc) >= 2000:
+            break
+    out = dict(
+        plain_advbench=dd(adv), plain_malicious=dd(mal),
+        real_wildjailbreak=dd(wjb_adv_harm), real_inthewild=itw_attacks,
+        benign_wildchat=wc, benign_wjb_adv=wjb_adv_benign[:1000],
+        wgm_prompts=wgm_prompts, wgm_labels=wgm_labels)
+    log('v6 harmful: AdvBench %d, Malicious %d, WildJailbreak-adv %d, in-the-wild %d | benign wc %d, wjb-adv-benign %d'
+        % (len(out['plain_advbench']), len(out['plain_malicious']), len(out['real_wildjailbreak']),
+           len(out['real_inthewild']), len(out['benign_wildchat']), len(out['benign_wjb_adv'])))
+    return out
+
+
 def load_all(load_dataset, n_eval=300, log=print):
     rng = random.Random(41)
     sr = [p for p in load_dataset('walledai/StrongREJECT', split='train')['prompt'] if isinstance(p, str)]

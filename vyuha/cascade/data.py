@@ -26,6 +26,31 @@ def dedup_against(cands, refs, thr=0.6):
     return kept, dropped
 
 
+def ensure_files(out_dir, log=print):
+    """Make v4_data.json, v4_pool.json, v4_wgm.json in out_dir if absent (deterministic ~2 min). Lets B/C/D run
+    without wiring notebook A's output as an input dataset. Returns the loaded dict D."""
+    import json
+    import os
+    os.makedirs(out_dir, exist_ok=True)
+    dpath, ppath, wpath = (f'{out_dir}/v4_data.json', f'{out_dir}/v4_pool.json', f'{out_dir}/v4_wgm.json')
+    if os.path.exists(dpath) and os.path.exists(ppath) and os.path.exists(wpath):
+        D = json.load(open(dpath))
+        D.update(json.load(open(wpath)))
+        log('reusing existing v4_data.json / v4_pool.json / v4_wgm.json')
+        return D
+    from datasets import load_dataset
+    from vyuha.cascade.transforms import make_pool
+    D = load_all(load_dataset, log=log)
+    json.dump({k: D[k] for k in ['eval_seeds', 'pilot_seeds', 'wc_calib', 'wc_test', 'hard']}, open(dpath, 'w'))
+    json.dump({'wgm_prompts': D['wgm_prompts'][:12000], 'wgm_labels': D['wgm_labels'][:12000]}, open(wpath, 'w'))
+    pool = make_pool(D['eval_seeds'], 60)
+    json.dump({'texts': [[t for t, _, _ in p] for p in pool],
+               'fams': [[f for _, f, _ in p] for p in pool],
+               'names': [[n for _, _, n in p] for p in pool]}, open(ppath, 'w'))
+    log(f'wrote v4_data.json / v4_pool.json / v4_wgm.json to {out_dir}')
+    return D
+
+
 def load_all(load_dataset, n_eval=300, log=print):
     rng = random.Random(41)
     sr = [p for p in load_dataset('walledai/StrongREJECT', split='train')['prompt'] if isinstance(p, str)]

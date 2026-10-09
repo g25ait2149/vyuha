@@ -241,6 +241,8 @@ EXPERTS = '''# Cell 2 - two experts x two views, one expert per GPU (T4 x2). Rea
 import json, os, numpy as np, torch
 from vyuha.normalize.normalize import normalize
 from vyuha.cascade.guards import load_model, forced_prefix, bucketed_scores
+from vyuha.cascade.data import ensure_files
+ensure_files(OUT)                                   # self-provision A's data/pool if not already present
 EVAL = json.load(open(f'{OUT}/v4_data.json'))['eval_seeds']
 WC_CALIB = json.load(open(f'{OUT}/v4_data.json'))['wc_calib']
 WC_TEST  = json.load(open(f'{OUT}/v4_data.json'))['wc_test']
@@ -280,6 +282,8 @@ import json, os, numpy as np, torch
 from vyuha.normalize.normalize import normalize
 from vyuha.cascade.guards import load_model, forced_prefix, first_ids, VOCAB, base_prompt, clip_user
 from vyuha.cascade.gcg import gcg_lm, suffix_vocab, splice_user_suffix
+from vyuha.cascade.data import ensure_files
+ensure_files(OUT)
 EVAL = json.load(open(f'{OUT}/v4_data.json'))['eval_seeds'][:100]
 V1 = lambda t: normalize(t, full=True, version=2)
 OUTF=f'{OUT}/v4_C_gcg.npz'; store=dict(np.load(OUTF)) if os.path.exists(OUTF) else {}
@@ -330,6 +334,8 @@ PAIR_NB = '''# Cell 2 - PAIR (A2) + end-to-end harm (H5) + judges, all under the
 import json, os, numpy as np
 from vyuha.cascade.api import Client, pick_attacker_model, BudgetExceeded
 from vyuha.cascade.pair_judge import pair_rewrite, intent_same, target_respond, strongreject_score, fetch_strongreject_rubric
+from vyuha.cascade.data import ensure_files
+ensure_files(OUT)
 client = Client(cap_usd=15.0)
 ATTACK_ORDER = ['NousResearch/Hermes-3-Llama-3.1-70B','mistralai/Mistral-Small-3.2-24B-Instruct-2506','Qwen/Qwen3-Next-80B-A3B-Instruct']
 TARGET = 'meta-llama/Llama-3.3-70B-Instruct-Turbo'; JUDGE = 'openai/gpt-oss-120b'

@@ -257,9 +257,12 @@ def put(k,v): store[k]=np.asarray(v); np.savez(OUTF, **store)
 def score_expert(mid, kind, tag, device):
     if f'{tag}/l0/pool' in store: print('[resume]', tag); return
     tok, m = load_model(mid, True, device=device)
-    import io, contextlib
+    import io, contextlib, time
     with contextlib.redirect_stdout(io.StringIO()): pre = forced_prefix(tok, m, kind, probes)
-    prog = lambda k,n: print(f'  {tag} {k}/{n}', end='\\r', flush=True)
+    t0 = [time.time()]
+    def prog(k, n):                                  # newline-terminated every ~2000 items (Kaggle logs by line)
+        if k % 2000 < 8 or k >= n:
+            print(f'  {tag} {k}/{n}  ({time.time()-t0[0]:.0f}s)', flush=True)
     for view, texts in [('l0', None), ('raw', None)]:
         def enc_view(xs): return V(xs) if view=='l0' else list(xs)
         put(f'{tag}/{view}/ben_wc_calib', bucketed_scores(tok,m, enc_view(WC_CALIB), kind, pre, progress=prog))

@@ -26,3 +26,17 @@ Re-confirmed, no change to positioning:
 - **2609.21793 CASCADE** — single-turn combinations; does not attack the delegation gate with input-side adaptive attacker + theory.
 
 **Positioning precision (do this in the paper):** credit Hua et al. 2507.15886 (stochastic monitor calls under a budget) and WEB 2605.17288 (cascade attack) up front; claim as NEW only (i) minimax-optimality of the *uniform* audit floor, (ii) the worst-case recall ceiling b·β̄, (iii) the k-strike enforcement bound, (iv) the safety-monitor setting with an input-side adaptive attacker and triggers evaluated against a *trigger-aware* attacker.
+
+### 2026-10-10 (manual check — scheduled task ran 02:15 UTC but still does NOT write to this repo file; its isolated env lacks the Aegis folder, so the session-start manual check remains the real mechanism)
+
+**Verdict: no scoop of our specific contribution. One important must-cite/differentiate (STACK), plus support that STRENGTHENS the deployed-pattern framing.**
+
+- **MEDIUM-HIGH — must cite + differentiate: STACK 2506.24068 (McKenzie, Gleave et al., v3 Feb 2026) "Adversarial Attacks on LLM Safeguard Pipelines".** Red-teams a multi-stage safeguard PIPELINE (input+output classifiers) guarding a model; STaged AttaCK = 71% ASR black-box / 33% transfer; explicitly notes Anthropic Opus 4, OpenAI GPT-5, DeepMind deploy such pipelines.
+  - **Differentiation (crucial):** STACK attacks a *check-all* pipeline where every stage always runs and the attacker must defeat each. OURS is a *delegation/escalation* cascade under a COMPUTE BUDGET: the cheap screen decides whether to invoke the expert, and the failure is a ROUTING failure (catchable attacks never escalated). The budget is exactly what creates our minimax ceiling b·β_A — an architecture STACK does not have (no budget, no delegation). So STACK ⇒ "defeat every layer"; ours ⇒ "the cost-saving gate fails to route, provably." Reviewer will ask the diff; this is the answer.
+  - **Bonus:** STACK establishes that these pipelines are DEPLOYED at frontier labs → supports our §2 "target the pattern, not a preprint" impact framing.
+- **MEDIUM support — Model Confidence Under Answer-Preserving Attacks 2608.06571:** a confidence score can be pushed around while the answer stays byte-identical ⇒ "confidence that can be manipulated cannot provide robust oversight." Direct support that confidence-gated escalation is defeatable. ADD.
+- **MEDIUM — GateDrain 2609.33992:** attack pushes the top-1/top-2 margin below the offload threshold to redirect edge→cloud inference (the INFLATE-escalation dual of our suppress-escalation attack); defense "Bounded Escalation" caps post-routing work. Cite for the escalation-attack-surface + enforcement framing.
+- **Support (deployed-pattern):** a Jan-2026 roundup notes probe-first cascades "now deployed at both Anthropic and Google DeepMind"; fine-tuned LLM classifiers can ~double inference cost → why the cost-saving delegation (our target) is used. Strengthens impact framing.
+- **LOW:** 2610.00346 (System-One decision-gate benchmark) — adjacent "decision gate" terminology, not adversarial safety.
+
+**Action:** fold STACK + 2608.06571 + GateDrain into v5 related work. Positioning unchanged and slightly STRENGTHENED (deployed-pattern importance + clean STACK differentiation). Proceed.

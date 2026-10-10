@@ -51,8 +51,16 @@ os.environ['HF_TOKEN'] = os.environ['HUGGINGFACE_HUB_TOKEN'] = tok or ''
 from huggingface_hub import login
 if tok: login(tok)
 import torch; print('GPUs:', torch.cuda.device_count(), '|', [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())])
-OUT = ('/kaggle/working' if KAGGLE else '/content') + '/v4'; os.makedirs(OUT, exist_ok=True)
-print('OUT =', OUT)'''
+# Persist outputs. Kaggle /kaggle/working survives a committed run; Colab /content is WIPED on quota/idle
+# reclaim, so mount Drive and write there (lesson L11 - a finished run was lost to an ephemeral VM).
+OUT = '/kaggle/working/v4'
+if not KAGGLE:
+    try:
+        from google.colab import drive; drive.mount('/content/drive'); OUT = '/content/drive/MyDrive/v4_run'
+    except Exception as e:
+        OUT = '/content/v4'; print('*** Drive mount FAILED - /content is EPHEMERAL, download outputs the moment the run ends ***', repr(e)[:80])
+os.makedirs(OUT, exist_ok=True)
+print('OUT =', OUT, '(persistent)' if (KAGGLE or OUT.startswith('/content/drive')) else '(EPHEMERAL - download immediately!)')'''
 
 PREFLIGHT = '''# Cell 1b - PREFLIGHT access check (clickable links for any FAIL)
 import os

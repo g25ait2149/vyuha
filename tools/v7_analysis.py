@@ -53,17 +53,24 @@ def main(path):
         if f'{s}/nat' in D:
             ns, ne = D[f'{s}/nat'], D[f'E/{s}/nat']
             natblk = (((ns > tau) | False) & (ne > t)).mean()  # deterministic gate, natural
-        passed = (s in PRIMARY and G >= 0.25 and lo > 0 and bA > 0)
+        # HONEST criterion: a conditional gate-failure is only meaningful when the expert actually catches a
+        # non-trivial share (beta_A >= 0.25). Otherwise G is a masked null (near-empty denominator; lesson L4/L14).
+        # Real gate-collapse = cascade loss >= 0.25 (equivalently G>=0.25 AND beta_A>=0.25).
+        meaningful = bA >= 0.25
+        passed = (s in PRIMARY and loss >= 0.25 and meaningful)
         if passed:
             hits += 1
         print(f'\n=== {s}  tau={tau:.2f}  FPR={fpr_real:.3f}')
-        print(f'  betaA(expert recall on chosen) = {bA:.3f} | cascade loss = {loss:.3f} | '
+        print(f'  betaA(expert recall on chosen) = {bA:.3f} | CASCADE LOSS = {loss:.3f} | '
               f'natural-variant block = {natblk:.3f}')
-        print(f'  H7 gate-failure G=P(not-esc|catch) = {G:.3f} [{lo:.2f},{hi:.2f}]'
-              f'{"  [PASS]" if passed else ("  [n/a betaA~0]" if (s in PRIMARY and bA <= 0.05) else "")}')
+        tag = '  [GATE-COLLAPSE]' if passed else (
+              '  [shared-blind-spot: attacker defeats expert too, betaA~0 -> G is a masked null]' if (s in PRIMARY and bA < 0.25)
+              else '')
+        print(f'  G=P(not-esc|catch) = {G:.3f} [{lo:.2f},{hi:.2f}]{tag}')
     print('\n' + '=' * 60)
-    print(f'H7 (adaptive gate-collapse on NEW data): {hits}/3 of {{S2,S3,S4}} (need >=2) -> '
-          f'{"PASS - holds on new data, limited-data stamp removed" if hits >= 2 else "FAIL - restrict claim"}')
+    print(f'H7 (adaptive gate-collapse on NEW data, HONEST: cascade loss>=0.25 AND betaA>=0.25): '
+          f'{hits}/3 of {{S2,S3,S4}} (need >=2) -> '
+          f'{"PASS" if hits >= 2 else "FAIL (gate-collapse only where expert stays robust; elsewhere shared blind spot)"}')
 
 
 if __name__ == '__main__':

@@ -40,3 +40,21 @@ Re-confirmed, no change to positioning:
 - **LOW:** 2610.00346 (System-One decision-gate benchmark) — adjacent "decision gate" terminology, not adversarial safety.
 
 **Action:** fold STACK + 2608.06571 + GateDrain into v5 related work. Positioning unchanged and slightly STRENGTHENED (deployed-pattern importance + clean STACK differentiation). Proceed.
+
+### 2026-10-10 (FULL round before char-restricted v7 — novelty + improvement review)
+
+**Verdict: NO scoop; novelty SHARPENED (our theorem = an inspection/audit-game result transferred to input-side safety-monitor cascades); one real compute-free IMPROVEMENT found.**
+
+Foundational lineage to CITE prominently (our Theorem 1 builds on these; we transfer + specialise, we do not claim the inspection-game idea):
+- **Audit Games (Blocki et al. 1303.0356)**, **Games for AI Control 2409.07985**, **Attack Selection 2602.04930 / 2606.06529** — inspection/audit games with a defender budget; attacker best-responds; "defer" = our escalation. These are in the AI-CONTROL untrusted-model-OUTPUT setting. OUR novelty: the INPUT-side safety-classifier cascade, the b*beta_A worst-case recall ceiling, and empirical beta_A-tracking. Position Theorem 1 explicitly as an audit-game result in a new setting.
+
+Close guardrail-cascade neighbours (all NON-adversarial systems/efficiency — the deployed pattern we attack; cite, differentiate):
+- **When in Doubt, Cascade 2407.06323 (AIES)** — efficient guardrail via cascade + synthetic data; no adversarial/routing analysis.
+- **Doomed from the Start 2607.06503** — recall-controlled probe-cascade for agent early-abort (cost), with per-gate certified recall; non-adversarial, different problem.
+- (plus GuardChain 2512.19011, CC++ 2601.04603, COGNIT, STACK 2506.24068 already mapped).
+
+No formal prior with our ADVERSARIAL bound: "Regret Bounds for Model Cascades" / cascading-bandits are AVERAGE-case / online-ranking (accuracy, not worst-case adversarial recall). Our worst-case b*beta_A is distinct.
+
+**IMPROVEMENT found (compute-free, add to theory):** the audit-game "signaling / bounded-control" theme + SHADE-Arena 2605.26047 ("deferring on critical actions is robust to the strongest red team") + the robotics signal-gated-vs-random-placebo ablation all point the same way: a LEARNED/signal escalation policy can beat the uniform floor ONLY when the attacker's score control is bounded (Delta-limited) or the screen is private/untransferable. Formalise as **Proposition 4 (when learning helps)**: under full score control the uniform floor is minimax-optimal (Thm 1); when control is Delta-bounded or the screen is private (A1-T), a monotone learned policy exceeds the floor up to the recoverable margin. This turns our escape routes (triggers, private/transfer screens) into a principled corollary and connects cleanly to the audit-game lineage. => strengthens the paper, needs no compute.
+
+**Char-restricted v7 remains novel+worth running:** no paper isolates routing-failure under a detectability constraint (restrict attacker to expert-catchable transforms). Proceed.

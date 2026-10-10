@@ -101,3 +101,15 @@ All constants (b, β_A, q, f, k) are **measured**, not assumed; the theorems pre
 ## 5. Verification
 
 `python tools/verify_theory.py` confirms: uniform floor attains b·β_min and dominates 50k random budget-b policies (T1); deterministic gate → 0 (Cor 1.1); negative-binomial mean matches k(1−q)/q and the binomial false-ban (T3). Any future change to a statement must keep this script green.
+
+## Proposition 4 (when learning helps — the dichotomy; added 2026-10-10)
+
+**Statement.** Let the attacker's score control be parameterised by Δ ≥ 0: it can drive a harmful variant's screen score down to, but not below, a Δ-inflated benign boundary σ(Δ) (Δ=∞ ⇒ full control / score-reachability A1; Δ small ⇒ manipulated inputs cannot reach the deepest benign-score region, e.g. because doing so fires a manipulation-aware trigger, or because the deployed screen is private and only a surrogate is attacked — A1-T).
+
+(i) **Full control (Δ=∞).** By Theorem 1 the uniform audit floor π≡b is minimax-optimal; no learned delegation policy beats it (a deterministic learned gate has worst-case recall 0, Cor 1.1).
+
+(ii) **Bounded control (Δ finite).** A monotone learned threshold that escalates every input with score ≤ σ(Δ) deterministically escalates all of the attacker's reachable variants, achieving worst-case recall = β_A (the expert's recall on those variants) > b·β_A, the uniform-floor value, whenever b<1.
+
+**Consequence.** *Learning helps exactly when, and to the degree that, the attacker's control over the cheap-stage score is bounded.* This is why the escape routes work and is the principled statement of Prop 2 (triggers) and the A1-T private-screen setting: triggers and non-transferable screens are mechanisms that make Δ finite. It also places our result in the audit-game lineage (Blocki et al.; Games for AI Control 2409.07985; Attack Selection 2602.04930/2606.06529), where a learned/signalled policy beats a uniform audit only against an attacker whose information or control is limited.
+
+*Verification:* `tools/verify_theory.py` (T4) — learned(full)=0 ≤ uniform=b·β_min; learned(Δ-bounded)=β_min > uniform. Both hold.

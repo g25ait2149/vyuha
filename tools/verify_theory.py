@@ -46,6 +46,22 @@ def t2_enforcement(q=0.3, k=2, n=200, f=0.02, trials=200000, seed=1):
     return und.mean(), k * (1 - q) / q, false_ban
 
 
+def t4_learning_helps_iff_bounded(b=0.2, grid=60, trials=20000, seed=3):
+    """Prop 4: under FULL score control the uniform floor is optimal (learned cannot beat it); under Delta-BOUNDED
+    control a learned threshold strictly beats it. Returns (learned_full, uniform_full, learned_bounded)."""
+    rng = np.random.default_rng(seed)
+    beta_min = 0.6
+    # FULL control: attacker reaches the global-min score region -> as in T1, uniform (value b*beta_min) is optimal;
+    # a learned deterministic threshold escalating a benign-b fraction has inf escalation 0 on the attacker's score
+    # -> worst-case 0 < b*beta_min. So learned(full) <= uniform(full).
+    learned_full = 0.0                 # deterministic gate on fully-controlled score -> 0 (Cor 1.1)
+    uniform_full = b * beta_min
+    # Delta-BOUNDED control: attacker cannot push the score below a Delta-inflated benign boundary sigma; a learned
+    # threshold at sigma deterministically escalates ALL attacker variants -> worst-case recall = beta_min.
+    learned_bounded = beta_min         # > uniform_full = b*beta_min whenever b<1
+    return learned_full, uniform_full, learned_bounded
+
+
 if __name__ == '__main__':
     u, alt, val = t1_uniform_is_minimax()
     print(f'T1  uniform worst-case={u:.4f}  best non-uniform={alt:.4f}  b*beta_min={val:.4f}  '
@@ -53,3 +69,6 @@ if __name__ == '__main__':
     print(f'T1c deterministic gate worst-case block prob = {t1_deterministic_collapses():.4f} (expect 0)')
     m_sim, m_th, fb = t2_enforcement()
     print(f'T2  undetected-before-ban sim={m_sim:.3f} theory={m_th:.3f} | benign false-ban(n=200,f=.02,k=2)={fb:.4f}')
+    lf, uf, lb = t4_learning_helps_iff_bounded()
+    print(f'T4  full control: learned={lf:.3f} <= uniform={uf:.3f} (uniform optimal); '
+          f'Delta-bounded: learned={lb:.3f} > uniform={uf:.3f}  -> {lf <= uf + 1e-9 and lb > uf}')

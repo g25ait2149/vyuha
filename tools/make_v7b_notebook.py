@@ -26,14 +26,19 @@ except Exception as e: print('HF_TOKEN missing:', repr(e)[:100])
 os.environ['HF_TOKEN']=os.environ['HUGGINGFACE_HUB_TOKEN']=tok or ''
 from huggingface_hub import login
 if tok: login(tok)
+# PERSISTENCE GUARD (docs/Notebook_Robustness_Rules.md): raise BEFORE compute if outputs would be ephemeral.
 OUT = BASE + '/v7b'
-if not KAGGLE:
+if KAGGLE:
+    _rt = os.environ.get('KAGGLE_KERNEL_RUN_TYPE', '')
+    if _rt != 'Batch':
+        raise RuntimeError(f"Kaggle run type={_rt!r} (not 'Batch'): /kaggle/working is EPHEMERAL in a draft/interactive session and is wiped on reset. Use Save Version -> Save & Run All (Commit).")
+else:
     try:
         from google.colab import drive; drive.mount('/content/drive'); OUT='/content/drive/MyDrive/v7b_run'
     except Exception as e:
-        OUT='/content/v7b'; print('*** Drive mount FAILED - /content is EPHEMERAL, download v7b_scores.npz the moment the run ends ***', repr(e)[:80])
+        raise RuntimeError('Google Drive mount failed -> /content is EPHEMERAL. Mount Drive before running. ' + repr(e)[:80])
 os.makedirs(OUT, exist_ok=True)
-import torch; print('GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'NO GPU', '| OUT =', OUT, '(persistent)' if (KAGGLE or OUT.startswith('/content/drive')) else '(EPHEMERAL!)')'''.replace('REPO_URL', REPO)
+import torch; print('GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'NO GPU', '| OUT =', OUT, '(PERSISTENT)')'''.replace('REPO_URL', REPO)
 
 PREFLIGHT = '''# Cell 2 - access preflight
 from huggingface_hub import HfApi
@@ -103,11 +108,23 @@ if f'E/{SCREENS[-1]}/chosen' not in store:
         if f'E/{s}/chosen' not in store: put(f'E/{s}/chosen', bucketed_scores(tok,m,V(chosen_texts[s]),'llamaguard',pre,progress=prog))
     m=tok=None; gc.collect(); torch.cuda.empty_cache()
 print('v7b done:', OUTF)
-if OUT.startswith('/content/drive'): print('SAVED TO DRIVE. Copy MyDrive/v7b_run/v7b_scores.npz -> Aegis/results/')
+if OUT.startswith('/content/drive'):
+    print('SAVED TO DRIVE. Copy MyDrive/v7b_run/v7b_scores.npz -> Aegis/results/')
+elif KAGGLE:
+    import shutil
+    try: shutil.copy(OUTF, '/kaggle/working/v7b_scores.npz')
+    except Exception: pass
+    print('KAGGLE: use Save & Run All (Commit) so /kaggle/working persists; file at /kaggle/working/v7b_scores.npz (Output tab). A draft/interactive session is ephemeral.')
 else:
     try:
         from google.colab import files; files.download(OUTF)
     except Exception: print('download it NOW:', OUTF)'''
+
+
+ANALYSIS = """# Cell 5 - print the verdict INLINE so the result survives in the (committed) log even if the npz is lost
+import tools.v7_analysis as A
+print('==== INLINE VERDICT (also saved as the npz; copy this text if the file is ever lost) ====')
+A.main(OUTF)"""
 
 
 def build():
@@ -119,7 +136,7 @@ def build():
               "checkpointed. Restart runtime, Run all. Output `v7b_scores.npz` -> `Aegis/results/` -> "
               "`python tools/v7_analysis.py results/v7b_scores.npz`."}]
     cells += [{"cell_type": "code", "metadata": {}, "execution_count": None, "outputs": [], "source": c}
-              for c in [SETUP, PREFLIGHT, DATA, SCORE]]
+              for c in [SETUP, PREFLIGHT, DATA, SCORE, ANALYSIS]]
     nb = {"nbformat": 4, "nbformat_minor": 5,
           "metadata": {"accelerator": "GPU", "kernelspec": {"name": "python3", "display_name": "Python 3"},
                        "language_info": {"name": "python"}}, "cells": cells}

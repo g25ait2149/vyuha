@@ -64,7 +64,7 @@ def main(path):
         print(f'  betaA(expert recall on chosen) = {bA:.3f} | CASCADE LOSS = {loss:.3f} | '
               f'natural-variant block = {natblk:.3f}')
         tag = '  [GATE-COLLAPSE]' if passed else (
-              '  [shared-blind-spot: attacker defeats expert too, betaA~0 -> G is a masked null]' if (s in PRIMARY and bA < 0.25)
+              '  [shared-blind-spot: attacker defeats expert too, betaA~0 -> G is a masked null; cite 2607.26574 / 2609.26178]' if (s in PRIMARY and bA < 0.25)
               else '')
         print(f'  G=P(not-esc|catch) = {G:.3f} [{lo:.2f},{hi:.2f}]{tag}')
     print('\n' + '=' * 60)

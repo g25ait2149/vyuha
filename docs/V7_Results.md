@@ -25,7 +25,7 @@ The full-pool adaptive attacker's best screen-evasion is ENCODINGS for S2/S3/S1 
 ## The honest, theory-anchored thesis (what ALL the data supports)
 Theorem 1 confirmed across v4 (char-level + unconditional, split-half), v6 (natural), v7 (adaptive new seeds): **cascade adversarial recall <= b*beta_A; cascade LOSS tracks beta_A at the attacker's chosen point.**
 - Where the attacker's screen-evasion is still expert-catchable (DeBERTa under any attacker; all learned screens under char-level attacks), the cheap gate provably fails to route it -> gate-collapse (loss 0.24-0.69). **DeBERTa gate-collapse replicated on NEW adaptive data: 0.655 (vs 0.28 natural).**
-- Where the attacker's evasion also defeats the expert (encodings; real jailbreaks), cascading is moot (beta_A~0) -> shared-blind-spot (cite Blind-Not-Weak / Unread-or-Unenforced).
+- Where the attacker's evasion also defeats the expert (encodings; real jailbreaks), cascading is moot (beta_A~0) -> shared-blind-spot (cite 2607.26574 "Attack Ensembles… Encoded VLM Jailbreaks" / Unread-or-Unenforced 2609.26178; "Blind-Not-Weak" was a wrong nickname — audit CI-2, 2026-10-11).
 Corollary 1.3: cascading provides NO robustness beyond the expert's beta_A; the cheap gate is a pure routing liability exactly in the regime where the expert would have helped.
 
 ## Consequence for the paper

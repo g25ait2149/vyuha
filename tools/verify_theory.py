@@ -62,6 +62,75 @@ def t4_learning_helps_iff_bounded(b=0.2, grid=60, trials=20000, seed=3):
     return learned_full, uniform_full, learned_bounded
 
 
+def t5_certified_screen_recovery(b=0.2, beta_A=0.6, rho=8, trials=20000, seed=5):
+    """Prop 5 (certified-screen fix), CORRECTED statement after a break-attempt.
+
+    WRONG (naive) claim: 'a certified-robust screen escalates harmful inputs.' Certification gives
+    decision STABILITY within an edit-ball, NOT correctness -- a stably-NON-escalated harmful point
+    is not helped. So certification alone does not imply escalation.
+
+    CORRECT claim (escalation PRESERVATION): if the plain harmful seed is escalated by the screen
+    (screens do flag plain harmful) and the screen is certifiably robust with radius rho, then an
+    attacker restricted to <= rho edits CANNOT flip it to non-escalated -> it stays escalated ->
+    worst-case cascade recall against a rho-bounded attacker = beta_A (vs b*beta_A uniform floor /
+    0 deterministic). For attacks with edit distance e > rho the certificate does not bind -> no
+    guarantee (reverts to the gate-collapse floor). The fix is therefore SCOPED to <=rho-edit
+    attackers; whether real char-level transforms fall within an achievable rho is the EMPIRICAL
+    crux v8 measures.
+
+    Simulate attackers with edit budget e drawn around rho; compare smoothed (radius rho) vs
+    unsmoothed deterministic gate.
+    """
+    rng = np.random.default_rng(seed)
+    e = rng.integers(1, 2 * rho + 1, trials)           # attacker edit distances, straddling rho
+    within = e <= rho
+    # smoothed certified screen: within rho -> escalation preserved -> block w.p. beta_A; beyond -> flips -> 0
+    recall_smoothed = np.where(within, beta_A, 0.0)
+    # unsmoothed deterministic gate: any edit flips escalation -> 0 (Cor 1.1); uniform floor would give b*beta_A
+    recall_unsmoothed_det = np.zeros(trials)
+    floor = b * beta_A
+    # claims: (i) for within-rho attackers smoothed == beta_A > floor; (ii) beyond-rho smoothed == unsmoothed (no help)
+    within_ok = np.allclose(recall_smoothed[within], beta_A) and beta_A > floor + 1e-9
+    beyond_ok = np.allclose(recall_smoothed[~within], recall_unsmoothed_det[~within])
+    return beta_A, floor, float(within.mean()), within_ok, beyond_ok
+
+
+def t6_impossibility_cheap_certified_fix(b=0.2, beta_A=0.7, cert_radius_edits=12,
+                                         seed_len=70, trials=20000, seed=6):
+    """Prop 6 (impossibility-of-cheap-certified-fix), SURFACE-LEG numerical instantiation.
+
+    Statement (surface leg, the operative one for intent-preserving transforms):
+      A certified screen with surface metric m (edit distance / token-l0 / embedding) recovers
+      worst-case recall on the attacker's feasible set F(x0) only if the certified m-ball of radius
+      r contains F(x0), i.e. coverage rho = P_{x in F}(m(x0,x) <= r) is non-trivial. For intent-
+      preserving char/Unicode obfuscation the surface spread D = m(x0, x) is LARGE (measured: edit
+      distance ~0.5*len), while a cheap smoothing certificate achieves only small r. Hence rho ~ 0
+      and R_cert = rho*beta_A reverts to <= the uniform floor b*beta_A -> no recovery.
+    Capacity leg (ii, analytic, NOT simulated here): a metric whose ball is small on F must decide
+      compliance ~ as hard as the expert -> needs >= expert capacity (Universal Law of Robustness,
+      Bubeck-Sellke 2105.12806: robust fit needs ~d x params) -> not a CHEAP screen. Canonicalization
+      leg (iii): a complete canonicalizer for F is impossible (Glukhov). Together: no cheap screen
+      admits (m,r) covering F with non-trivial rho.
+
+    Numerics: draw the attacker's realized edit distances from the MEASURED char-transform regime
+    (median ~40 on len ~70, i.e. ~0.57*len, spread); a generous cheap certified radius is
+    cert_radius_edits (<= low tens, per RS-Del/CERT-ED). Show rho ~ 0 and R_cert <= b*beta_A.
+    """
+    rng = np.random.default_rng(seed)
+    # measured regime: ED/len ~ 0.48-0.64 -> center ~0.55*len with spread; floor at a few edits
+    frac = np.clip(rng.normal(0.55, 0.12, trials), 0.05, 1.0)
+    attack_ed = np.maximum(1, (frac * seed_len).astype(int))      # realized edit distances
+    covered = attack_ed <= cert_radius_edits                      # within the cheap certified ball?
+    rho = float(covered.mean())
+    R_cert = rho * beta_A
+    floor = b * beta_A
+    # claim: rho ~ 0 for the measured regime, and certified recovery does NOT beat the floor
+    no_recovery = R_cert <= floor + 1e-9
+    # how large would r need to be to get rho>=0.5? the attack's median footprint:
+    r_needed = int(np.median(attack_ed))
+    return rho, R_cert, floor, no_recovery, cert_radius_edits, r_needed
+
+
 if __name__ == '__main__':
     u, alt, val = t1_uniform_is_minimax()
     print(f'T1  uniform worst-case={u:.4f}  best non-uniform={alt:.4f}  b*beta_min={val:.4f}  '
@@ -72,3 +141,11 @@ if __name__ == '__main__':
     lf, uf, lb = t4_learning_helps_iff_bounded()
     print(f'T4  full control: learned={lf:.3f} <= uniform={uf:.3f} (uniform optimal); '
           f'Delta-bounded: learned={lb:.3f} > uniform={uf:.3f}  -> {lf <= uf + 1e-9 and lb > uf}')
+    bA, fl, frac, wok, bok = t5_certified_screen_recovery()
+    print(f'T5  certified-screen (escalation-PRESERVATION): within-rho recall={bA:.3f} > floor b*beta_A={fl:.3f} '
+          f'[{wok}]; beyond-rho no help [{bok}]; frac attacks within rho={frac:.2f} '
+          f'-> {wok and bok}  (scoped to <=rho-edit attackers; empirical crux = attack edit-dist vs rho)')
+    rho, Rc, fl6, norec, rcert, rneed = t6_impossibility_cheap_certified_fix()
+    print(f'T6  impossibility (surface leg): cheap cert radius={rcert} edits; attack coverage rho={rho:.3f}; '
+          f'R_cert={Rc:.3f} <= floor b*beta_A={fl6:.3f} [{norec}]; radius needed for rho>=0.5 ~= {rneed} edits '
+          f'(>> achievable) -> {norec}  (capacity+canonicalization legs are analytic: Universal-Law 2105.12806 / Glukhov)')

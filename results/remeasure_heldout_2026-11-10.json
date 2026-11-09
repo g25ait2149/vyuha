@@ -1,0 +1,387 @@
+{
+ "date": "2026-11-10",
+ "notes": "ungated sources only; gated benchmarks need a Kaggle run with HF_TOKEN",
+ "l1_table": [
+  {
+   "n": 1605,
+   "roc_auc": 0.6797607755272261,
+   "recall_at_1pct_fpr": 0.09290953545232274,
+   "fpr_at_95_tpr": 1.0,
+   "f1": 0.5060893098782138,
+   "precision": 0.5666666666666667,
+   "recall": 0.4572127139364303,
+   "asr": 0.5427872860635696,
+   "frr": 0.11956521739130435,
+   "model": "Keyword",
+   "dataset": "in_house",
+   "latency_ms": 0.32
+  },
+  {
+   "n": 1605,
+   "roc_auc": 0.9337318363575405,
+   "recall_at_1pct_fpr": 0.39853300733496333,
+   "fpr_at_95_tpr": 0.3403010033444816,
+   "f1": 0.7858942065491183,
+   "precision": 0.8103896103896104,
+   "recall": 0.7628361858190709,
+   "asr": 0.23716381418092913,
+   "frr": 0.061036789297658864,
+   "model": "Word-TFIDF",
+   "dataset": "in_house",
+   "latency_ms": 0.59
+  },
+  {
+   "n": 1605,
+   "roc_auc": 0.9316282473771578,
+   "recall_at_1pct_fpr": 0.3202933985330073,
+   "fpr_at_95_tpr": 0.35535117056856186,
+   "f1": 0.7737617135207496,
+   "precision": 0.8550295857988166,
+   "recall": 0.706601466992665,
+   "asr": 0.293398533007335,
+   "frr": 0.04096989966555184,
+   "model": "RJD-v1",
+   "dataset": "in_house",
+   "latency_ms": 13.66
+  },
+  {
+   "n": 1605,
+   "roc_auc": 0.9293406710223973,
+   "recall_at_1pct_fpr": 0.35207823960880197,
+   "fpr_at_95_tpr": 0.3419732441471572,
+   "f1": 0.7789203084832905,
+   "precision": 0.8211382113821138,
+   "recall": 0.7408312958435208,
+   "asr": 0.2591687041564792,
+   "frr": 0.05518394648829431,
+   "model": "RJD-v2",
+   "dataset": "in_house",
+   "latency_ms": 13.36
+  },
+  {
+   "n": 1605,
+   "roc_auc": 0.8839100996802708,
+   "recall_at_1pct_fpr": 0.16381418092909536,
+   "fpr_at_95_tpr": 0.4096989966555184,
+   "f1": 0.6855895196506551,
+   "precision": 0.6193293885601578,
+   "recall": 0.7677261613691931,
+   "asr": 0.23227383863080686,
+   "frr": 0.16137123745819398,
+   "model": "Vyuha-Fast",
+   "dataset": "in_house",
+   "latency_ms": 193.99
+  },
+  {
+   "n": 200,
+   "roc_auc": 0.5,
+   "recall_at_1pct_fpr": 0.01,
+   "fpr_at_95_tpr": 1.0,
+   "f1": 0.0196078431372549,
+   "precision": 0.5,
+   "recall": 0.01,
+   "asr": 0.99,
+   "frr": 0.01,
+   "model": "Keyword",
+   "dataset": "jailbreakbench",
+   "latency_ms": 0.32
+  },
+  {
+   "n": 200,
+   "roc_auc": 0.4585,
+   "recall_at_1pct_fpr": 0.01,
+   "fpr_at_95_tpr": 0.96,
+   "f1": 0.05660377358490566,
+   "precision": 0.5,
+   "recall": 0.03,
+   "asr": 0.97,
+   "frr": 0.03,
+   "model": "Word-TFIDF",
+   "dataset": "jailbreakbench",
+   "latency_ms": 0.59
+  },
+  {
+   "n": 200,
+   "roc_auc": 0.44760000000000005,
+   "recall_at_1pct_fpr": 0.0,
+   "fpr_at_95_tpr": 0.92,
+   "f1": 0.0,
+   "precision": 0.0,
+   "recall": 0.0,
+   "asr": 1.0,
+   "frr": 0.02,
+   "model": "RJD-v1",
+   "dataset": "jailbreakbench",
+   "latency_ms": 13.66
+  },
+  {
+   "n": 200,
+   "roc_auc": 0.45690000000000003,
+   "recall_at_1pct_fpr": 0.0,
+   "fpr_at_95_tpr": 0.93,
+   "f1": 0.07207207207207207,
+   "precision": 0.36363636363636365,
+   "recall": 0.04,
+   "asr": 0.96,
+   "frr": 0.07,
+   "model": "RJD-v2",
+   "dataset": "jailbreakbench",
+   "latency_ms": 13.36
+  },
+  {
+   "n": 200,
+   "roc_auc": 0.45690000000000003,
+   "recall_at_1pct_fpr": 0.0,
+   "fpr_at_95_tpr": 0.93,
+   "f1": 0.07207207207207207,
+   "precision": 0.36363636363636365,
+   "recall": 0.04,
+   "asr": 0.96,
+   "frr": 0.07,
+   "model": "Vyuha-Fast",
+   "dataset": "jailbreakbench",
+   "latency_ms": 193.99
+  }
+ ],
+ "robustness": [
+  {
+   "attack": "leet",
+   "Keyword": 0.3691931540342298,
+   "Word-TFIDF": 0.7334963325183375,
+   "RJD-v1": 0.6992665036674817,
+   "RJD-v2": 0.9706601466992665,
+   "Vyuha-Fast": 0.9706601466992665
+  },
+  {
+   "attack": "homoglyph",
+   "Keyword": 0.33496332518337407,
+   "Word-TFIDF": 0.7114914425427873,
+   "RJD-v1": 0.6894865525672371,
+   "RJD-v2": 0.8997555012224939,
+   "Vyuha-Fast": 0.902200488997555
+  },
+  {
+   "attack": "base64",
+   "Keyword": 0.0,
+   "Word-TFIDF": 0.0,
+   "RJD-v1": 0.6210268948655256,
+   "RJD-v2": 1.0,
+   "Vyuha-Fast": 1.0
+  },
+  {
+   "attack": "rot13",
+   "Keyword": 0.0,
+   "Word-TFIDF": 0.0024449877750611247,
+   "RJD-v1": 0.6699266503667481,
+   "RJD-v2": 1.0,
+   "Vyuha-Fast": 1.0
+  },
+  {
+   "attack": "zero_width",
+   "Keyword": 0.19315403422982885,
+   "Word-TFIDF": 0.6601466992665037,
+   "RJD-v1": 0.6625916870415648,
+   "RJD-v2": 0.9144254278728606,
+   "Vyuha-Fast": 0.9144254278728606
+  },
+  {
+   "attack": "char_spacing",
+   "Keyword": 0.0,
+   "Word-TFIDF": 0.0,
+   "RJD-v1": 0.6968215158924206,
+   "RJD-v2": 1.0,
+   "Vyuha-Fast": 1.0
+  },
+  {
+   "attack": "emoji_smuggle",
+   "Keyword": 0.2078239608801956,
+   "Word-TFIDF": 0.6992665036674817,
+   "RJD-v1": 0.684596577017115,
+   "RJD-v2": 0.9144254278728606,
+   "Vyuha-Fast": 0.9144254278728606
+  },
+  {
+   "attack": "fullwidth",
+   "Keyword": 0.0,
+   "Word-TFIDF": 0.0,
+   "RJD-v1": 0.684596577017115,
+   "RJD-v2": 0.8459657701711492,
+   "Vyuha-Fast": 0.8533007334963325
+  },
+  {
+   "attack": "wide_spacing",
+   "Keyword": 0.0,
+   "Word-TFIDF": 0.0,
+   "RJD-v1": 0.6919315403422983,
+   "RJD-v2": 1.0,
+   "Vyuha-Fast": 1.0
+  }
+ ],
+ "l1_seconds": 3659.5,
+ "adaptive_held_out": {
+  "configs": {
+   "vanilla (L0 off, aug off)": {
+    "static_asr": 1.0,
+    "adaptive_asr": 1.0,
+    "adaptive_asr_ci95": [
+     0.951,
+     1.0
+    ],
+    "benign_fpr": 0.02,
+    "held_out_fpr": null,
+    "n_transforms": 101,
+    "genetic_asr": 1.0,
+    "genetic_asr_ci95": [
+     0.951,
+     1.0
+    ],
+    "genetic_mean_queries": 0.4
+   },
+   "L0 only (norm, aug off)": {
+    "static_asr": 0.707,
+    "adaptive_asr": 1.0,
+    "adaptive_asr_ci95": [
+     0.951,
+     1.0
+    ],
+    "benign_fpr": 0.02,
+    "held_out_fpr": null,
+    "n_transforms": 101,
+    "genetic_asr": 1.0,
+    "genetic_asr_ci95": [
+     0.951,
+     1.0
+    ],
+    "genetic_mean_queries": 2.7
+   },
+   "aug only (L0 off, aug)": {
+    "static_asr": 0.507,
+    "adaptive_asr": 0.587,
+    "adaptive_asr_ci95": [
+     0.474,
+     0.691
+    ],
+    "benign_fpr": 0.044,
+    "held_out_fpr": null,
+    "n_transforms": 101,
+    "genetic_asr": 0.653,
+    "genetic_asr_ci95": [
+     0.541,
+     0.751
+    ],
+    "genetic_mean_queries": 45.1
+   },
+   "RJD-v2 (L0 + aug)": {
+    "static_asr": 0.427,
+    "adaptive_asr": 0.453,
+    "adaptive_asr_ci95": [
+     0.346,
+     0.566
+    ],
+    "benign_fpr": 0.072,
+    "held_out_fpr": null,
+    "n_transforms": 101,
+    "genetic_asr": 0.453,
+    "genetic_asr_ci95": [
+     0.346,
+     0.566
+    ],
+    "genetic_mean_queries": 66.5
+   }
+  },
+  "headline": {
+   "attacker_moves_second_premium": 0.293,
+   "augmentation_closes_adaptive": 0.547,
+   "genetic_vs_pairwise_full": 0.0,
+   "full_genetic_asr": 0.453
+  },
+  "n_attacks": 75,
+  "n_benign": 250,
+  "threshold": 0.5,
+  "protocol": "held_out",
+  "seconds": 1092.4
+ },
+ "adaptive_in_sample": {
+  "configs": {
+   "vanilla (L0 off, aug off)": {
+    "static_asr": 1.0,
+    "adaptive_asr": 1.0,
+    "adaptive_asr_ci95": [
+     0.975,
+     1.0
+    ],
+    "benign_fpr": 0.0,
+    "held_out_fpr": null,
+    "n_transforms": 101,
+    "genetic_asr": 1.0,
+    "genetic_asr_ci95": [
+     0.975,
+     1.0
+    ],
+    "genetic_mean_queries": 1.0
+   },
+   "L0 only (norm, aug off)": {
+    "static_asr": 0.02,
+    "adaptive_asr": 1.0,
+    "adaptive_asr_ci95": [
+     0.975,
+     1.0
+    ],
+    "benign_fpr": 0.0,
+    "held_out_fpr": null,
+    "n_transforms": 101,
+    "genetic_asr": 1.0,
+    "genetic_asr_ci95": [
+     0.975,
+     1.0
+    ],
+    "genetic_mean_queries": 7.9
+   },
+   "aug only (L0 off, aug)": {
+    "static_asr": 0.013,
+    "adaptive_asr": 0.1,
+    "adaptive_asr_ci95": [
+     0.062,
+     0.158
+    ],
+    "benign_fpr": 0.0,
+    "held_out_fpr": null,
+    "n_transforms": 101,
+    "genetic_asr": 0.573,
+    "genetic_asr_ci95": [
+     0.493,
+     0.65
+    ],
+    "genetic_mean_queries": 83.1
+   },
+   "RJD-v2 (L0 + aug)": {
+    "static_asr": 0.0,
+    "adaptive_asr": 0.0,
+    "adaptive_asr_ci95": [
+     0.0,
+     0.025
+    ],
+    "benign_fpr": 0.01,
+    "held_out_fpr": null,
+    "n_transforms": 101,
+    "genetic_asr": 0.0,
+    "genetic_asr_ci95": [
+     0.0,
+     0.025
+    ],
+    "genetic_mean_queries": 117.4
+   }
+  },
+  "headline": {
+   "attacker_moves_second_premium": 0.98,
+   "augmentation_closes_adaptive": 1.0,
+   "genetic_vs_pairwise_full": 0.0,
+   "full_genetic_asr": 0.0
+  },
+  "n_attacks": 150,
+  "n_benign": 500,
+  "threshold": 0.5,
+  "protocol": "in_sample",
+  "seconds": 2706.3
+ }
+}

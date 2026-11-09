@@ -58,15 +58,18 @@ Recall is reported at a fixed 1% FPR.
   **held-out wider-spacing** variant it never trained on (leetspeak 0.97, homoglyph/zero-width/
   full-width ≈0.70). Character-spacing was the prior open gap (red-team ASR 0.83); a multi-view-max +
   adaptive-gap de-spacing fix closed it to **0.00** and generalizes to the held-out variant.
-- **Adaptive robustness (C4; 150 in-the-wild seeds, 500 benign):** against an adaptive attacker
-  searching 101 single/paired evasions per seed, L0 normalization alone drops **static** ASR to 0.02
-  but **adaptive** ASR stays **1.00 [0.97, 1.00]** (the attacker-moves-second premium); adversarial
-  augmentation closes it - RJD-v2 holds adaptive ASR to **0.03 [0.01, 0.08]** at **1%** benign FPR.
-  A harder **genetic** attacker (deep transform chains + crossover, ~110 queries/seed) confirms this:
-  over **five independent attacker seeds** the full detector holds at **0.08 [0.06, 0.10]** pooled (0.07-0.09
-  per seed; an attacker allowed all five seeds evades only 0.09), while **augmentation alone collapses to
-  0.75 [0.72, 0.78]** pooled (seed-dependent 0.58-0.99; **1.00** for the five-seed attacker; vs 0.25 pairwise) - showing L0 normalization is far more load-bearing than the pairwise ablation implied, and
-  neither L0 nor augmentation is sufficient alone. Both earn their place.
+- **Adaptive robustness (C4; corrected 10 Nov 2026):** the figure previously given here (adaptive ASR
+  0.03 at 1% FPR; 0.08 under a genetic attacker) was measured **in-sample**: the ablation retrained the
+  detector on the same 150 seeds and 500 benign prompts it then attacked and scored. It is withdrawn.
+  Re-run **held out** (fit on one half, attack and score the other: 75 attack seeds, 250 benign, threshold
+  0.5, an attacker searching 101 single/paired evasions per seed): a bare detector is fully evaded
+  (1.00 [0.95, 1.00]); L0 normalization alone gives static ASR 0.71 but adaptive 1.00 (an
+  attacker-moves-second premium of +0.29, not +0.98); augmentation alone 0.59 [0.47, 0.69]; full RJD-v2
+  (L0 + aug) **0.45 [0.35, 0.57]** at 7.2% benign FPR, and a genetic attacker does no better (0.45). Both
+  components help, but at this sample size L0's gain over augmentation alone is not significant (the
+  intervals overlap). A detector trained on the full corpus (n=3093) and attacked on 150 held-out seeds
+  is evaded **0.30 [0.23, 0.38]** by the genetic attacker at 6.6% held-out over-refusal (0.11 on seen
+  seeds; 5 Oct run). The fast layer is not robust to an adaptive attacker on its own; that is L2's job.
 - **L1 ensemble (Vyuha-Fast) - NOT the default:** adding a semantic + signature signal raises
   over-refusal to **FRR 0.175** for negligible gain (its templates false-fire on benign text), so
   RJD-v2 ships as L1 and the ensemble is optional.

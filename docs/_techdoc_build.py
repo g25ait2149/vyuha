@@ -490,12 +490,7 @@ H.append('<p>Since this document was first reviewed, four evaluations were added
          '&ldquo;where is the novelty?&rdquo; with numbers rather than assertion.</p>')
 H.append(table(
     ["Axis / claim", "Result (95% CI)", "Tested on"],
-    [["Adaptive robustness (C4)", "L0-only: static ASR 0.02 but adaptive <b>1.00</b> [0.97&ndash;1.00] "
-      "(<b>+0.98</b> &ldquo;attacker-moves-second&rdquo; premium); full RJD-v2 (L0+aug) adaptive <b>0.03</b> "
-      "[0.01&ndash;0.08] at 1% FPR, and <b>0.08</b> [0.06&ndash;0.10] under a harder <b>genetic</b> attacker "
-      "pooled over 5 attacker seeds (0.07&ndash;0.09 per seed) &mdash; it holds. Augmentation alone: 0.25 pairwise but "
-      "<b>0.75</b> [0.72&ndash;0.78] genetic (1.00 for a 5-seed attacker) &mdash; so L0 is heavily load-bearing and neither component is "
-      "sufficient alone; both earn their place", "150 in-the-wild seeds, 500 benign"],
+    [["Adaptive robustness (C4, held out)", "Measured held out (detector never sees the attacked seeds): full RJD-v2 (L0+aug) adaptive <b>0.45</b> [0.35&ndash;0.57] at 7.2% benign FPR; augmentation alone 0.59 [0.47&ndash;0.69]; L0 alone 1.00 (static 0.71, a +0.29 &ldquo;attacker-moves-second&rdquo; premium). A full-corpus detector is evaded <b>0.30</b> [0.23&ndash;0.38] on 150 held-out seeds (0.11 on seen seeds). The fast layer is <b>not</b> adaptive-robust alone; an earlier in-sample 0.03 is withdrawn", "75 held-out seeds / 250 benign; 150 held-out seeds (full corpus)"],
      ["NIST-AI-RMF guard benchmark", "Qwen3Guard-0.6B recall <b>0.886</b> on the 6 complete-harmful-request "
       "axes at 7.1% benign FPR &mdash; on par with the benchmark&rsquo;s best 4B model (0.840) at &asymp;7&times; "
       "smaller &mdash; vs 0.253 on the 2 toxicity-prefix axes; overall 0.651 [0.62&ndash;0.68] (scored on the "

@@ -50,8 +50,8 @@ beats both Granite~4.1 (+0.65) and Llama~Guard~3-8B (+0.61), but on adversarial 
 requests it ties Granite and trails Llama~Guard~3 (by 0.25 on JailbreakBench), and a Best-of-N augmentation attacker evades it as
 easily as either small guard. At the layer level, with 95\%
 confidence intervals: the CPU fast layer matches a GPU neural guard's obfuscation robustness at
-$\sim$8\,ms; against an adaptive attacker, normalisation alone leaves ASR at 1.00 while adversarial
-augmentation closes it to 0.03 at 1\% false-positive rate; on a NIST-AI-RMF guard benchmark the
+$\sim$8\,ms; against an adaptive attacker on held-out seeds the fast layer is still evaded 0.30 of the time at
+6.6\% false positives, so it is not adaptive-robust on its own; on a NIST-AI-RMF guard benchmark the
 0.6B content guard Vyuha binds reaches 0.886 recall on complete-harmful-request axes --- on par with a
 7$\times$ larger model --- and Vyuha's selective cascade matches an 8B guard's recall at about a third
 of its latency on a free T4; and a session-level monitor catches 71\% of multi-turn (Crescendo) escalations a
@@ -281,10 +281,9 @@ Table~\ref{tab:main} summarises the measured results; all proportions carry 95\%
 \midrule
 Obfuscation (L1) & recall & \textbf{1.00} incl.\ held-out \\
  & latency & $\sim$8\,ms CPU \\
-Adaptive (L1) & ASR, L0 only & 1.00 [0.97,1.00] \\
- & ASR, L0+aug (pairwise) & \textbf{0.03} [0.01,0.08] \\
- & ASR, L0+aug (genetic) & \textbf{0.08} [0.06,0.10] \\
- & held-out seeds (gen.) & 0.30 [0.23,0.38] \\
+Adaptive (L1, held out) & ASR, L0 only & 1.00 [0.95,1.00] \\
+ & ASR, L0+aug & 0.45 [0.35,0.57] \\
+ & full corpus, genetic & 0.30 [0.23,0.38] \\
 Self-harden (L5) & seen-family ASR & 0.11\,$\rightarrow$\,\textbf{0.00} \\
 Semantic (L2) & PAIR recall & \textbf{0.90} (L1: 0.07) \\
 NIST-RMF (L2) & recall, req.\ axes & \textbf{0.886} ($\approx$4B: 0.84) \\
@@ -314,35 +313,31 @@ character-spacing gap from ASR 0.83 to 0.00 and generalises to the held-out vari
   ymin=0, ymax=1.08, ylabel={ASR}, symbolic x coords={vanilla,L0 only,aug only,L0+aug},
   xtick=data, x tick label style={rotate=12,anchor=east}, ymajorgrids, tick align=outside,
   enlarge x limits=0.18, legend style={at={(0.5,1.13)},anchor=south,legend columns=3,draw=none}]
-\addplot coordinates {(vanilla,1.00)(L0 only,0.02)(aug only,0.03)(L0+aug,0.01)};
-\addplot coordinates {(vanilla,1.00)(L0 only,1.00)(aug only,0.25)(L0+aug,0.03)};
-\addplot coordinates {(vanilla,1.00)(L0 only,1.00)(aug only,0.75)(L0+aug,0.08)};
+\addplot coordinates {(vanilla,1.00)(L0 only,0.71)(aug only,0.51)(L0+aug,0.43)};
+\addplot coordinates {(vanilla,1.00)(L0 only,1.00)(aug only,0.59)(L0+aug,0.45)};
+\addplot coordinates {(vanilla,1.00)(L0 only,1.00)(aug only,0.65)(L0+aug,0.45)};
 \legend{static,pairwise,genetic}
 \end{axis}
 \end{tikzpicture}
-\caption{Adaptive-attack ablation (C4), 150 in-the-wild seeds. L0 alone cuts \emph{static} ASR to 0.02
-but both adaptive attackers still reach 1.00. Only the full detector (L0+aug) holds --- 0.03 [0.01,0.08]
-pairwise and 0.08 [0.06,0.10] under a harder genetic search (pooled over five attacker seeds) --- while
-augmentation \emph{alone} collapses to 0.75 under the genetic attacker (1.00 for an attacker allowed all
-five seeds), showing L0 and augmentation are both load-bearing.}
+\caption{Adaptive-attack ablation (C4), held out: each detector is fitted on 75 in-the-wild seeds and 250
+benign prompts and attacked on the other 75 and 250. L0 alone cuts \emph{static} ASR to 0.71 but both
+adaptive attackers reach 1.00; the full detector (L0+aug) is still evaded 0.45 [0.35,0.57] at 7.2\%
+benign FPR. An earlier in-sample version of this figure (0.03 pairwise) is withdrawn.}
 \label{fig:adaptive}
 \end{figure}
 
-\paragraph{Adaptive robustness (C4).} Figure~\ref{fig:adaptive} shows the ablation. Against an adaptive attacker (exhaustive search over 101
-single/paired evasions per seed) on 150 real in-the-wild jailbreak seeds: a bare detector is fully
-evaded (1.00). Normalisation alone drops the \emph{static} per-mutator ASR to 0.02 yet the adaptive
-attacker still reaches 1.00 [0.97,1.00] --- a $+0.98$ ``attacker-moves-second'' premium the static
-number hides. Adversarial augmentation is the load-bearing fix: the full detector holds adaptive ASR
-to 0.03 [0.01,0.08] at 1\% benign FPR. A harder \emph{genetic} attacker (deep transform chains with
-crossover, $\sim$110 queries/seed), run with five independent attacker seeds, confirms this rather than
-breaking it --- the full detector holds at 0.08 [0.06,0.10] pooled (0.07--0.09 per seed), and even an
-attacker allowed all five seeds evades only 0.09 of prompts. The same genetic search, however, drives
-\emph{augmentation-alone} from 0.25 to 0.75 [0.72,0.78] pooled --- highly seed-dependent (0.58--0.99), and
-1.00 for the five-seed attacker: L0 normalisation is far more load-bearing than the pairwise ablation
-implied, and neither component is sufficient on its own --- both earn their place.
+\paragraph{Adaptive robustness (C4).} Figure~\ref{fig:adaptive} shows the ablation. The adaptive attacker
+searches 101 single/paired evasions per seed. Fitted and attacked on disjoint halves of the seeds, a
+bare detector is fully evaded (1.00 [0.95,1.00]); normalisation alone drops the static ASR to 0.71 yet the
+adaptive attacker still reaches 1.00, a $+0.29$ ``attacker-moves-second'' premium; augmentation alone
+leaves 0.59 [0.47,0.69] and the full detector 0.45 [0.35,0.57] at 7.2\% benign FPR, with a genetic
+attacker (deep transform chains with crossover) no stronger. Both components help, but at this sample
+size L0's gain over augmentation alone is not significant. A previous draft reported 0.03 [0.01,0.08]
+and a $+0.98$ premium; those runs scored the detector on the seeds it had been trained on, and we
+withdraw them.
 
-\paragraph{Held-out seeds and self-hardening (L5).} The adaptive seeds above come from the detector's
-training distribution. On a disjoint split --- 150 attack seeds and 500 benign prompts removed from
+\paragraph{Held-out seeds and self-hardening (L5).} The ablation above trains on only half the seeds. With
+the full training corpus, on a disjoint split --- 150 attack seeds and 500 benign prompts removed from
 training, against a detector retrained without them --- the genetic attacker evades 0.30 [0.23,0.38] of
 \emph{held-out} seeds versus 0.11 [0.07,0.17] of seen ones: robustness to attacks from unseen families is
 markedly weaker, which we report as a limit of the fast layer. L5's self-hardening loop addresses the
@@ -682,8 +677,8 @@ The NIST-RMF result is an indicative reconstruction, not the official 79{,}331-s
 two toxicity-prefix axes are short fragments a request-focused guard reasonably under-flags. The
 Crescendo result is on modeled score trajectories. Our adaptive attacker searches over
 public transforms --- both an exhaustive pairwise sweep and a harder genetic (deep-chain, crossover)
-search, which the full detector also survives (0.08 [0.06,0.10] genetic over five seeds vs 0.03 pairwise). Those seeds are in-distribution; on held-out
-attack seeds the genetic attacker evades 0.30 [0.23,0.38], and self-hardening closes seen attack families
+search. On held-out attack seeds the full detector is evaded 0.45 [0.35,0.57] in the ablation and the
+genetic attacker evades 0.30 [0.23,0.38] of a full-corpus detector's held-out seeds, and self-hardening closes seen attack families
 but not novel ones. To place Vyuha in
 a shared harness we release it as a PIArena \citep{piarena} defense plug-in; the static and
 search-based head-to-head (Direct, Combined, TAP, PAIR) is single-GPU runnable, whereas the strongest

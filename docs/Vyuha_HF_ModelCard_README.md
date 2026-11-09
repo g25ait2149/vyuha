@@ -104,10 +104,7 @@ Recall is reported at a fixed 1% FPR.
   estimated **≈10x** attacker query-cost inflation behind the content guard. Over-refusal (XSTest):
   RJD-v2 **0.008**.
 - **L3 agent:** injection-under-obfuscation detection **1.00** vs 0.00-0.17 for a regex baseline;
-  benign-pass 1.00. On **AgentDojo** (banking, important_instructions) L3 drives injection **ASR to
-  0.00** on both a weak agent (gpt-oss-20b, undefended 1.00) and a strong one (gpt-oss-120b, undefended
-  0.06 at 0.69 utility, n=16; L3 keeps 0.50 utility) - small L3-arm n (free-tier quota). Behind CaMeL's
-  capability guarantees. On **MCP tool-poisoning** (hidden agent-directed instructions in tool
+  benign-pass 1.00. On AgentDojo (all four suites, important_instructions, gpt-oss-120b agent, 949 episodes per arm) L3 lowers injection ASR from 0.385 to 0.331 at no utility cost (0.50 vs 0.52); the drop comes from Slack (0.74 -> 0.59) and Travel (0.66 -> 0.49), with no reduction in Banking (0.69 -> 0.70) or Workspace (0.17 -> 0.15). A modest reduction, well behind CaMeL's capability guarantees. An earlier banking-only figure (ASR 0.00, n=16) came from a harness that inverted AgentDojo's security flag (fixed 5 Oct 2026) and is withdrawn. On **MCP tool-poisoning** (hidden agent-directed instructions in tool
   metadata; n=25 poisoned incl. obfuscated / self-secrecy / poisoned-parameter cases, 27 benign
   incl. tricky dangerous-capability tools) the registration-time scanner detects **1.00 [95% CI
   0.87-1.00]** at **0** false positives (benign pass 1.00 [0.88-1.00]); the **instruction-hierarchy**
